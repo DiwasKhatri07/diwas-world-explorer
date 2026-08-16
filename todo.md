@@ -27,3 +27,13 @@
 - [x] Implement opt-in voice-route commands and stylized sound feedback with an accessible control guide.
 - [x] Build a full in-game controls tutorial for mouse/tap, keyboard, camera gesture, and voice modes.
 - [x] Verify desktop, mobile, low-motion, and permission-denial states before delivery.
+
+# Hybrid Visual and Character Overhaul
+
+- [x] Add a dedicated hand-drawn 2D atlas mode alongside the real-time 3D route view.
+- [x] Replace the basic 3D explorer silhouette with a more expressive anime-coder character treatment and idle/dance reactions.
+- [x] Recompose the 3D worlds into denser illustrated coding-island scenes with clearer landmarks, route logic, and visual storytelling.
+- [x] Add a live camera hand-tracking HUD with red gesture landmarks, status states, and a concise control legend.
+- [x] Expand the guided tutorial with camera-hand controls, reaction actions, and recovery instructions.
+- [x] Upgrade the entry screen with layered motion, map-drawing/coding motifs, and richer animated transitions.
+- [x] Verify the hybrid modes, character actions, and hand-control feedback on desktop and mobile before delivery.

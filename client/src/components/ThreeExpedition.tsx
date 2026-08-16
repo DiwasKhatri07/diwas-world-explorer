@@ -14,6 +14,7 @@ type SceneState = {
   stations: ExpeditionStation[];
   activeStationId: string | null;
   viewMode: "atlas" | "close";
+  emote: number;
 };
 
 type Props = SceneState & { className?: string };
@@ -26,14 +27,14 @@ const levelPalette: Record<ExpeditionLevelId, { sky: number; water: number; gras
   "night-lab": { sky: 0x264b78, water: 0x155f87, grass: 0x355f5d, sand: 0xbea36e, glow: 0xff715b },
 };
 
-function roundedIsland(palette: { grass: number; sand: number }) {
+function roundedIsland(palette: { grass: number; sand: number }, atlasTexture: THREE.Texture) {
   const root = new THREE.Group();
   const grass = new THREE.Mesh(new THREE.CylinderGeometry(26, 28, 1.4, 56), new THREE.MeshStandardMaterial({ color: palette.grass, roughness: 0.98 }));
   grass.scale.z = 0.68;
   grass.position.y = -0.72;
   grass.receiveShadow = true;
   root.add(grass);
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(20, 48), new THREE.MeshStandardMaterial({ color: palette.sand, roughness: 1 }));
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(20, 48), new THREE.MeshStandardMaterial({ map: atlasTexture, color: 0xfff3d0, roughness: 1, transparent: true, opacity: 0.76 }));
   sand.rotation.x = -Math.PI / 2;
   sand.scale.set(1.08, 0.65, 1);
   sand.position.y = 0.02;
@@ -45,6 +46,7 @@ function roundedIsland(palette: { grass: number; sand: number }) {
 function createPlayer() {
   const root = new THREE.Group();
   const navy = new THREE.MeshStandardMaterial({ color: 0x173a56, roughness: 0.72 });
+  const navyGlow = new THREE.MeshStandardMaterial({ color: 0x205f7a, emissive: 0x0d3246, emissiveIntensity: 0.45, roughness: 0.5 });
   const mustard = new THREE.MeshStandardMaterial({ color: 0xc99035, roughness: 0.78 });
   const cream = new THREE.MeshStandardMaterial({ color: 0xf5ddb1, roughness: 0.88 });
   const skin = new THREE.MeshStandardMaterial({ color: 0x9b603d, roughness: 0.9 });
@@ -62,6 +64,16 @@ function createPlayer() {
   const hair = new THREE.Mesh(new THREE.SphereGeometry(0.335, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), navy);
   hair.position.y = 2.22;
   root.add(hair);
+  for (let spike = 0; spike < 5; spike += 1) {
+    const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.34, 5), navy);
+    tuft.position.set((spike - 2) * 0.1, 2.4 + Math.abs(spike - 2) * 0.02, -0.03);
+    tuft.rotation.z = (spike - 2) * 0.22;
+    root.add(tuft);
+  }
+  const headphones = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 8, 18, Math.PI), navyGlow);
+  headphones.position.set(0, 2.13, -0.04);
+  headphones.rotation.y = Math.PI;
+  root.add(headphones);
   [-0.18, 0.18].forEach((x) => {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.74, 0.24), navy);
     leg.position.set(x, 0.48, 0);
@@ -73,6 +85,7 @@ function createPlayer() {
   });
   [-0.5, 0.5].forEach((x) => {
     const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.58, 4, 8), mustard);
+    arm.name = x > 0 ? "right-arm" : "left-arm";
     arm.position.set(x, 1.34, 0);
     arm.rotation.z = x > 0 ? -0.28 : 0.28;
     root.add(arm);
@@ -81,6 +94,37 @@ function createPlayer() {
   pin.position.set(0.22, 1.52, 0.42);
   pin.rotation.x = Math.PI / 2;
   root.add(pin);
+  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.78, 0.2), navy);
+  backpack.position.set(0, 1.34, -0.3);
+  backpack.castShadow = true;
+  root.add(backpack);
+  const laptopGlow = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.24, 0.03), new THREE.MeshStandardMaterial({ color: 0x85e4e5, emissive: 0x2d9fa2, emissiveIntensity: 0.8 }));
+  laptopGlow.position.set(0, 1.42, -0.42);
+  root.add(laptopGlow);
+  return root;
+}
+
+function createCodeTerminal() {
+  const root = new THREE.Group();
+  const ink = new THREE.MeshStandardMaterial({ color: 0x102a43, roughness: 0.58, metalness: 0.08 });
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(1.26, 1.02, 0.15), ink);
+  frame.position.y = 1.25;
+  root.add(frame);
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.76, 0.025), new THREE.MeshStandardMaterial({ color: 0x184a60, emissive: 0x0d2938, emissiveIntensity: 0.55 }));
+  screen.position.set(0, 1.25, 0.09);
+  root.add(screen);
+  const colors = [0x77e1df, 0xff715b, 0xf4dba5, 0x77e1df];
+  colors.forEach((color, index) => {
+    const line = new THREE.Mesh(new THREE.BoxGeometry(0.5 + (index % 2) * 0.24, 0.045, 0.02), new THREE.MeshBasicMaterial({ color }));
+    line.position.set(-0.2 + (index % 2) * 0.08, 1.48 - index * 0.16, 0.115);
+    root.add(line);
+  });
+  const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.78, 8), ink);
+  stand.position.y = 0.42;
+  root.add(stand);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.65, 0.14, 10), new THREE.MeshStandardMaterial({ color: 0xf4dba5, roughness: 0.9 }));
+  base.position.y = 0.07;
+  root.add(base);
   return root;
 }
 
@@ -208,10 +252,10 @@ function createNightCrystal() {
   return root;
 }
 
-export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, className }: Props) {
+export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode });
-  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode };
+  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote });
+  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -255,6 +299,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const atlasTexture = textureLoader.load(menuAtlas);
     atlasTexture.colorSpace = THREE.SRGBColorSpace;
     let loadedLevel: ExpeditionLevelId | null = null;
+    let handledEmote = stateRef.current.emote;
+    let danceUntil = 0;
     let lastTime = performance.now();
     let frame = 0;
 
@@ -280,8 +326,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       clearGroup(markerRoot);
       clearGroup(landmarkRoot);
       island.clear();
-      island.add(roundedIsland(palette));
-      const atlasUnderlay = new THREE.Mesh(new THREE.PlaneGeometry(51, 34), new THREE.MeshBasicMaterial({ map: atlasTexture, transparent: true, opacity: next.levelId === "night-lab" ? 0.12 : 0.22, color: 0xfff4d6 }));
+      island.add(roundedIsland(palette, atlasTexture));
+      const atlasUnderlay = new THREE.Mesh(new THREE.PlaneGeometry(51, 34), new THREE.MeshBasicMaterial({ map: atlasTexture, transparent: true, opacity: next.levelId === "night-lab" ? 0.16 : 0.3, color: 0xfff4d6 }));
       atlasUnderlay.rotation.x = -Math.PI / 2;
       atlasUnderlay.rotation.z = Math.PI;
       atlasUnderlay.position.y = 0.045;
@@ -313,6 +359,11 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         landmark.position.copy(point.clone().add(new THREE.Vector3(index % 2 === 0 ? 1.8 : -1.8, 0, index % 2 === 0 ? -1.1 : 1.1)));
         landmark.rotation.y = index * 0.74;
         landmarkRoot.add(landmark);
+        const terminal = createCodeTerminal();
+        terminal.position.copy(point.clone().add(new THREE.Vector3(index % 2 === 0 ? -1.42 : 1.42, 0, index % 2 === 0 ? 1.34 : -1.34)));
+        terminal.rotation.y = index * 0.48 + Math.PI;
+        terminal.scale.setScalar(0.78);
+        landmarkRoot.add(terminal);
       });
       for (let propIndex = 0; propIndex < 12; propIndex += 1) {
         const angle = propIndex * 1.83;
@@ -369,6 +420,21 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       lastTime = time;
       const worldPosition = toWorld(state.position);
       player.position.lerp(worldPosition, Math.min(1, dt * 12));
+      if (state.emote !== handledEmote) { handledEmote = state.emote; danceUntil = time + 2500; }
+      const leftArm = player.getObjectByName("left-arm");
+      const rightArm = player.getObjectByName("right-arm");
+      if (time < danceUntil) {
+        const beat = Math.sin(time / 110);
+        player.position.y = Math.abs(beat) * 0.22;
+        player.rotation.z = beat * 0.1;
+        if (leftArm) leftArm.rotation.z = 0.55 + beat * 0.85;
+        if (rightArm) rightArm.rotation.z = -0.55 - beat * 0.85;
+      } else {
+        player.position.y = THREE.MathUtils.lerp(player.position.y, worldPosition.y, Math.min(1, dt * 8));
+        player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, 0, Math.min(1, dt * 8));
+        if (leftArm) leftArm.rotation.z = THREE.MathUtils.lerp(leftArm.rotation.z, 0.28, Math.min(1, dt * 8));
+        if (rightArm) rightArm.rotation.z = THREE.MathUtils.lerp(rightArm.rotation.z, -0.28, Math.min(1, dt * 8));
+      }
       if (state.target) {
         const destination = toWorld(state.target);
         const direction = destination.clone().sub(player.position);
