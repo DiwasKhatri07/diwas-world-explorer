@@ -86,3 +86,12 @@
 - [x] Replace the small bearing card with a true city mini-map showing the explorer, routes, and discoverable stations.
 - [x] Add a Code City low-detail mode for lower-end mobile devices, with meaningful scene and renderer reductions.
 - [x] Verify the full quest, calibration flow, map, loading handoff, and low-detail mode on desktop and mobile before publishing.
+
+# Code City Completion and Optimization Pass
+
+- [x] Replace the 100% loading state with a fail-safe completion handoff and timeout-based playable fallback.
+- [x] Further reduce Code City rendering cost and shrink the mini-map for constrained devices.
+- [x] Add a visual completion stamp and reward sound to the three-stop courier delivery.
+- [x] Add mini-map station inspection that shows the selected station name and delivery status.
+- [x] Add a live on-screen signal when a calibrated hand gesture is successfully recognized.
+- [x] Verify load handoff, optimization mode, reward states, station inspection, and gesture feedback before publishing.

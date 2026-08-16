@@ -54,6 +54,10 @@ export class AudioManager {
     this.chime([330, 494, 659], 0.032, 0.24, "triangle");
   }
 
+  public playQuestComplete() {
+    this.chime([523, 659, 784, 1047], 0.055, 0.58, "triangle");
+  }
+
   private chime(frequencies: number[], gain: number, duration: number, type: OscillatorType) {
     if (!this._enabled || !this.context) return;
     const now = this.context.currentTime;

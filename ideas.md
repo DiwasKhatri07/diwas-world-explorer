@@ -98,3 +98,5 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - Code City’s visible cards translate implementation into warmly observant field-guide language, while every control surface retains a paper, ink, stamp, route, or compass cue.
 - The stamped parchment route ribbon is the primary visual spine of every playable district: its coral signals, landmark connections, and route flags guide the eye before supporting panels do.
 - Landing and playable terrain share a sunlit sea-glass atlas treatment, with turquoise water bands, softened illustrated shadows, parchment routes, and Compass Coral reserved for discoveries.
+- In Code City, the route is a flat illustrated parchment ribbon with stamped coral waypoints; it must never read as a raised pipe, freeway, or technical barrier.
+- Secondary logs and toggles stay deliberately quieter than the world, route ribbon, active discovery, and city field map.

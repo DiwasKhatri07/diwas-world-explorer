@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight, Camera, Check, ChevronLeft, ChevronRight, Compass, Crosshair,
   Eye, Footprints, Gamepad2, Github, Hand, Keyboard, Map, Mic, MousePointer2, Navigation,
-  Orbit, Play, RefreshCw, Shield, Sparkles, Swords, Upload, UserRound, Volume2, VolumeX, X, Zap, Gauge,
+  Orbit, Play, RefreshCw, Shield, Sparkles, Swords, Upload, UserRound, Volume2, VolumeX, X, Zap, Gauge, Award,
 } from "lucide-react";
 import { AudioManager } from "@/game/AudioManager";
 import ThreeExpedition, { type EnvironmentLoadState } from "@/components/ThreeExpedition";
@@ -38,7 +38,7 @@ const fallbackAvatar = "/manus-storage/diwas-avatar_07dadb43.png";
 const totemSheet = "/manus-storage/landmark-totems_89545891.png";
 const ambienceUrl = "/manus-storage/diwas-island-ambient_44fb9747.mp3";
 const defaultMaleCharacterUrl = "/manus-storage/Male05_f2f8ab35.fbx";
-const defaultCityEnvironmentUrl = "/manus-storage/Untitled_a86f5402.glb";
+const defaultCityEnvironmentUrl = "/manus-storage/Untitled-web_328ae43c.glb";
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (first: Position, second: Position) => Math.hypot(first.x - second.x, first.y - second.y);
 const demoMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
@@ -77,6 +77,9 @@ export default function GameCanvas() {
   const [cityLowDetail, setCityLowDetail] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches);
   const [deliveryStep, setDeliveryStep] = useState(0);
   const [deliveryStatus, setDeliveryStatus] = useState("Take the sealed route satchel to Signal Crossing.");
+  const [deliveryCompleteStamp, setDeliveryCompleteStamp] = useState(false);
+  const [mapStationId, setMapStationId] = useState<string | null>(null);
+  const [recognizedGesture, setRecognizedGesture] = useState<"forward" | "stop" | "pinch" | null>(null);
   const [calibrationStep, setCalibrationStep] = useState(0);
   const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(defaultMaleCharacterUrl);
   const [environmentModelName, setEnvironmentModelName] = useState("");
@@ -128,9 +131,11 @@ export default function GameCanvas() {
   const isCodeCity = levelId === "code-city";
   const deliveryTargetId = cityDeliveryStops[Math.min(deliveryStep, cityDeliveryStops.length - 1)];
   const deliveryTarget = isCodeCity ? level.stations.find((station) => station.id === deliveryTargetId) ?? null : null;
+  const mapStation = isCodeCity ? level.stations.find((station) => station.id === mapStationId) ?? deliveryTarget : null;
+  const mapStationStatus = mapStation ? cityDeliveryStops.indexOf(mapStation.id as typeof cityDeliveryStops[number]) < deliveryStep ? "Delivered" : mapStation.id === deliveryTargetId ? "Next delivery" : cityDeliveryStops.includes(mapStation.id as typeof cityDeliveryStops[number]) ? "Awaiting courier" : "Atlas landmark" : "Route complete";
   const cityNavigationStation = levelId === "code-city" ? level.stations.reduce((closest, station) => distance(target ?? position, station) < distance(target ?? position, closest) ? station : closest, level.stations[0]) : null;
   const cityCompassAngle = cityNavigationStation ? Math.atan2(cityNavigationStation.x - position.x, position.y - cityNavigationStation.y) * (180 / Math.PI) : 0;
-  const cityLoadPercent = cityLoad.total > 0 ? Math.min(100, Math.round((cityLoad.loaded / cityLoad.total) * 100)) : cityLoad.loaded > 0 ? 8 : 3;
+  const cityLoadPercent = cityLoad.phase === "ready" ? 100 : cityLoad.total > 0 ? Math.min(99, Math.round((cityLoad.loaded / cityLoad.total) * 100)) : cityLoad.loaded > 0 ? 8 : 3;
   const cityLoadingVisible = worldMode === "3d" && levelId === "code-city" && !environmentModelUrl && cityLoad.phase !== "ready" && !cityLoadHidden;
   const activeEnvironmentModelUrl = environmentModelUrl || (levelId === "code-city" ? `${defaultCityEnvironmentUrl}?city-route=${cityAssetRevision}` : null);
   const writeHandStatus = (message: string) => {
@@ -217,9 +222,17 @@ export default function GameCanvas() {
   }, [levelId, worldMode, environmentModelUrl, cityAssetRevision]);
 
   useEffect(() => {
+    if (!cityLoadingVisible) return;
+    const timeout = window.setTimeout(() => setCityLoad((current) => current.phase === "loading" ? { phase: "error", loaded: current.loaded, total: current.total } : current), 12000);
+    return () => window.clearTimeout(timeout);
+  }, [cityLoadingVisible]);
+
+  useEffect(() => {
     if (levelId === "code-city") {
       setDeliveryStep(0);
       setDeliveryStatus("Take the sealed route satchel to Signal Crossing.");
+      setDeliveryCompleteStamp(false);
+      setMapStationId("signal-crossing");
     }
   }, [levelId]);
 
@@ -305,6 +318,8 @@ export default function GameCanvas() {
     if (deliveryStep >= cityDeliveryStops.length - 1) {
       setDeliveryStep(cityDeliveryStops.length);
       setDeliveryStatus("Delivery complete. The Wayfinder Kiosk has stamped your city-route pass.");
+      setDeliveryCompleteStamp(true);
+      audioRef.current?.playQuestComplete();
       return;
     }
     const nextStep = deliveryStep + 1;
@@ -466,6 +481,7 @@ export default function GameCanvas() {
               const calibrationGesture = ["forward", "stop", "pinch"][calibrationStepRef.current];
               if (stageRef.current === "calibration" && gesture === calibrationGesture && tracker.active !== `calibration-${gesture}`) {
                 tracker.active = `calibration-${gesture}`;
+                setRecognizedGesture(gesture);
                 const nextStep = Math.min(3, calibrationStepRef.current + 1);
                 calibrationStepRef.current = nextStep;
                 setCalibrationStep(nextStep);
@@ -475,17 +491,20 @@ export default function GameCanvas() {
                 writeHandStatus("Hold the gesture shown on the field card until it confirms.");
               } else if (gesture === "stop" && tracker.active !== "stop") {
                 tracker.active = "stop";
+                setRecognizedGesture("stop");
                 targetRef.current = null;
                 setTarget(null);
                 audioRef.current?.playGesture();
                 writeHandStatus("Open palm confirmed: route stopped.");
               } else if (gesture === "pinch" && tracker.active !== "pinch") {
                 tracker.active = "pinch";
+                setRecognizedGesture("pinch");
                 audioRef.current?.playGesture();
                 writeHandStatus("Pinch confirmed: opening the nearby field note.");
                 interactRef.current();
               } else if (gesture === "forward" && (tracker.active !== "forward" || now - tracker.lastForward > 1100)) {
                 tracker.active = "forward";
+                setRecognizedGesture("forward");
                 tracker.lastForward = now;
                 const origin = targetRef.current ?? positionRef.current;
                 const nextTarget = { x: origin.x, y: clamp(origin.y - 12, 10, 89) };
@@ -635,8 +654,9 @@ export default function GameCanvas() {
       </header>
       <button className="credits-toggle" onClick={() => setCreditsOpen(true)}>Credits camp</button>
 
-      {worldMode === "3d" && isCodeCity && <aside className="city-mini-map" aria-label="Code City mini-map"><div className="mini-map-header"><span className="tiny-kicker">City field map</span><span>{deliveryStep >= cityDeliveryStops.length ? "Delivered" : `${deliveryStep + 1}/3`}</span></div><div className="mini-map-canvas"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M48 77 C42 72 38 68 38 68 S24 48 24 48 S55 44 55 44 S67 25 67 25 S75 47 75 47 S83 63 83 63" /></svg>{level.stations.map((station) => <button className={`mini-station ${station.id === deliveryTargetId ? "is-target" : ""} ${discoveries.includes(station.id) ? "is-found" : ""}`} key={`map-${station.id}`} style={{ left: `${station.x}%`, top: `${station.y}%` }} onClick={() => moveTo(station)} aria-label={`Set ${station.name} as destination`} />)}<i className="mini-player" style={{ left: `${position.x}%`, top: `${position.y}%` }} /></div><div className="mini-map-footer"><Navigation size={12} style={{ transform: `rotate(${cityCompassAngle}deg)` }} /><span>{deliveryTarget?.name ?? "Route complete"}</span></div></aside>}
+      {worldMode === "3d" && isCodeCity && <aside className="city-mini-map" aria-label="Code City mini-map"><div className="mini-map-header"><span className="tiny-kicker">City field map</span><span>{deliveryStep >= cityDeliveryStops.length ? "Delivered" : `${deliveryStep + 1}/3`}</span></div><div className="mini-map-canvas"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M48 77 C42 72 38 68 38 68 S24 48 24 48 S55 44 55 44 S67 25 67 25 S75 47 75 47 S83 63 83 63" /></svg>{level.stations.map((station) => <button className={`mini-station ${station.id === deliveryTargetId ? "is-target" : ""} ${station.id === mapStation?.id ? "is-selected" : ""} ${discoveries.includes(station.id) ? "is-found" : ""}`} key={`map-${station.id}`} style={{ left: `${station.x}%`, top: `${station.y}%` }} onClick={() => { setMapStationId(station.id); moveTo(station); }} aria-label={`Inspect ${station.name}`} />)}<i className="mini-player" style={{ left: `${position.x}%`, top: `${position.y}%` }} /></div><div className="mini-map-footer"><Navigation size={12} style={{ transform: `rotate(${cityCompassAngle}deg)` }} /><span><b>{mapStation?.name ?? "Route complete"}</b>{mapStation && <em>{mapStationStatus}</em>}</span></div></aside>}
       {worldMode === "3d" && isCodeCity && !activeStation && <aside className="city-delivery-quest" aria-label="Code City delivery quest"><p className="tiny-kicker">City courier</p><strong>{deliveryStep >= cityDeliveryStops.length ? "Route pass stamped" : `Satchel delivery · ${deliveryStep + 1}/3`}</strong><p>{deliveryStatus}</p>{deliveryTarget && deliveryStep < cityDeliveryStops.length && <button onClick={() => moveTo(deliveryTarget)}><Navigation size={13} /> Set route to {deliveryTarget.name}</button>}</aside>}
+      {deliveryCompleteStamp && <aside className="delivery-completion-stamp" aria-live="polite"><Award size={27} /><p>City courier pass</p><strong>DELIVERED</strong><span>Three route stamps earned</span><button onClick={() => setDeliveryCompleteStamp(false)}>Keep exploring</button></aside>}
       {cityLoadingVisible && <section className={`city-loading-screen is-${cityLoad.phase}`} aria-live="polite"><div className="city-loading-mark"><img src={compassMark} alt="" /></div><p className="tiny-kicker">Code City model bay</p><h2>{cityLoad.phase === "error" ? "The skyline needs another signal." : "Unfolding the city skyline."}</h2><p>{cityLoad.phase === "error" ? "The expedition is still playable with the illustrated fallback. Retry the city route when your connection is ready." : `Opening the city route${cityLoad.total ? ` · ${cityLoadPercent}%` : ""}.`}</p><div className="city-loading-bar" aria-label={`City asset progress ${cityLoadPercent}%`}><i style={{ width: `${cityLoad.phase === "error" ? 100 : cityLoadPercent}%` }} /></div>{cityLoad.phase === "error" ? <div className="city-loading-actions"><button onClick={retryCityAsset}>Retry city route</button><button onClick={() => setCityLoadHidden(true)}>Explore fallback</button></div> : <small>Keep this field note open while the skyline reaches the atlas.</small>}</section>}
 
       <aside className="field-notes" aria-label="Exploration progress">
@@ -686,6 +706,7 @@ export default function GameCanvas() {
       {voiceStatus && <div className="voice-status"><Mic size={14} />{voiceStatus}<button onClick={() => setVoiceStatus("")} aria-label="Dismiss voice status"><X size={13} /></button></div>}
       {cameraActive && <div className={`camera-preview ${handTracking ? "is-tracking" : ""}`}><video ref={videoRef} autoPlay playsInline muted /><canvas ref={handCanvasRef} className="hand-overlay" aria-hidden="true" /><span>{handTracking ? <Hand size={12} /> : <Camera size={12} />}{handTracking ? " Hand Route · LIVE" : " Scout Cam"}</span><button onClick={stopCamera} aria-label="Stop Scout Cam"><X size={13} /></button></div>}
       {handTracking && <div className="hand-status"><Hand size={14} />{handStatus}<button onClick={calibrateHandRoute}>Calibrate</button></div>}
+      {handTracking && <div className={`gesture-signal ${recognizedGesture ? "is-lit" : ""}`} aria-live="polite"><Hand size={15} /><span>{recognizedGesture === "forward" ? "FORWARD" : recognizedGesture === "stop" ? "STOP" : recognizedGesture === "pinch" ? "OPEN" : "READY"}</span></div>}
       {eyeTracking && <div className="eye-status"><Eye size={14} />{eyeStatus}</div>}
       {isFrontier && <aside className="encounter-kit" aria-label="Practice encounter"><div><span className="tiny-kicker">Practice drone</span><strong>{enemyHp > 0 ? `Signal strength ${enemyHp}/4` : "Route cleared"}</strong><i><b style={{ width: `${enemyHp * 25}%` }} /></i></div><div><span className="tiny-kicker"><Shield size={12} /> Explorer stamina</span><strong>{playerHp}/5</strong></div>{combatStatus && <p>{combatStatus}</p>}</aside>}
 

@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
 
 type Position = { x: number; y: number };
@@ -394,6 +395,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const importedAvatar = new THREE.Group();
     const importedCombatProps = new THREE.Group();
     const gltfLoader = new GLTFLoader();
+    gltfLoader.setMeshoptDecoder(MeshoptDecoder);
     const fbxLoader = new FBXLoader();
     fbxLoader.manager.setURLModifier((url) => uploadedFbxTextures[url.split(/[\\/]/).pop() ?? ""] ?? url);
     const importedSword = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.08, 0.08), new THREE.MeshStandardMaterial({ color: 0xd7e2dc, metalness: 0.55, roughness: 0.38 }));
@@ -494,9 +496,11 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
           const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
           materials.forEach((material) => {
             const standard = material as THREE.MeshStandardMaterial;
-            standard.color?.lerp(new THREE.Color(0xffe7b6), 0.13);
+            standard.color?.lerp(new THREE.Color(0xffe7b6), 0.24);
             standard.roughness = 0.86;
             standard.metalness = 0;
+            standard.emissive?.setHex(0x33240f);
+            standard.emissiveIntensity = 0.05;
             standard.needsUpdate = true;
           });
         }
@@ -569,7 +573,28 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
           toWorld({ x: 75, y: 47 }).add(new THREE.Vector3(0, 0.22, 0)),
           toWorld({ x: 83, y: 63 }).add(new THREE.Vector3(0, 0.2, 0)),
         ]);
-        const cityRibbon = new THREE.Mesh(new THREE.TubeGeometry(cityRoute, 72, 0.22, 8, false), new THREE.MeshStandardMaterial({ color: 0xf6d996, emissive: 0x5d4215, emissiveIntensity: 0.2, roughness: 0.92 }));
+        const ribbonPoints = cityRoute.getSpacedPoints(72);
+        const ribbonShape = new THREE.Shape();
+        ribbonPoints.forEach((point, index) => {
+          const before = ribbonPoints[Math.max(0, index - 1)];
+          const after = ribbonPoints[Math.min(ribbonPoints.length - 1, index + 1)];
+          const tangent = after.clone().sub(before).normalize();
+          const edgeX = -tangent.z * 0.43;
+          const edgeZ = tangent.x * 0.43;
+          if (index === 0) ribbonShape.moveTo(point.x + edgeX, -(point.z + edgeZ));
+          else ribbonShape.lineTo(point.x + edgeX, -(point.z + edgeZ));
+        });
+        [...ribbonPoints].reverse().forEach((point, reverseIndex) => {
+          const index = ribbonPoints.length - 1 - reverseIndex;
+          const before = ribbonPoints[Math.max(0, index - 1)];
+          const after = ribbonPoints[Math.min(ribbonPoints.length - 1, index + 1)];
+          const tangent = after.clone().sub(before).normalize();
+          ribbonShape.lineTo(point.x - (-tangent.z * 0.43), -(point.z - (tangent.x * 0.43)));
+        });
+        ribbonShape.closePath();
+        const cityRibbon = new THREE.Mesh(new THREE.ShapeGeometry(ribbonShape), new THREE.MeshBasicMaterial({ color: 0xf6d996, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
+        cityRibbon.rotation.x = -Math.PI / 2;
+        cityRibbon.position.y = 0.23;
         levelRoot.add(cityRibbon);
         cityRoute.getSpacedPoints(16).forEach((point, index) => {
           if (index % 2) return;
