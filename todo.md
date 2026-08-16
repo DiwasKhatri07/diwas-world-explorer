@@ -77,3 +77,12 @@
 - [x] Add interactive city props, route flags, and discovery markers around the imported skyline.
 - [x] Rework hand controls with explicit calibration, stable gesture thresholds, clear start/stop states, and a usable fallback when camera tracking is unreliable.
 - [x] Verify the city route, touch/keyboard navigation, and hand gestures before publishing.
+
+# Code City Quest and Calibration Expansion
+
+- [x] Fix the Code City loading overlay so it dismisses immediately after the GLB scene has been added and framed.
+- [x] Add a pre-experience hand gesture calibration briefing with practice and explicit confirmation states.
+- [x] Add a delivery quest that uses city stations and gesture-ready interactions to complete a route objective.
+- [x] Replace the small bearing card with a true city mini-map showing the explorer, routes, and discoverable stations.
+- [x] Add a Code City low-detail mode for lower-end mobile devices, with meaningful scene and renderer reductions.
+- [x] Verify the full quest, calibration flow, map, loading handoff, and low-detail mode on desktop and mobile before publishing.

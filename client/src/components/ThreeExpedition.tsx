@@ -20,6 +20,7 @@ type SceneState = {
   combatAction: "none" | "slash" | "block";
   environmentModelUrl: string | null;
   avatarModelUrl: string | null;
+  lowDetail: boolean;
 };
 
 export type EnvironmentLoadState = {
@@ -354,11 +355,11 @@ function createCityRouteProp(kind: number) {
   return root;
 }
 
-export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, className, onEnvironmentLoad }: Props) {
+export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, lowDetail, className, onEnvironmentLoad }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl });
+  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, lowDetail });
   const environmentLoadRef = useRef(onEnvironmentLoad);
-  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl };
+  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, lowDetail };
   environmentLoadRef.current = onEnvironmentLoad;
 
   useEffect(() => {
@@ -432,6 +433,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     let danceUntil = 0;
     let lastTime = performance.now();
     let frame = 0;
+    let lowDetailActive = stateRef.current.lowDetail;
+    let environmentReady = false;
 
     const clearGroup = (group: THREE.Group) => {
       while (group.children.length) {
@@ -444,6 +447,16 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
           else mesh.material?.dispose();
         });
       }
+    };
+
+    const applyEnvironmentDetail = (low: boolean) => {
+      let meshIndex = 0;
+      importedEnvironment.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.visible = !low || meshIndex % 3 === 0;
+        meshIndex += 1;
+      });
     };
 
     const placeSessionModel = (model: THREE.Object3D, target: THREE.Group, targetHeight: number, isAvatar: boolean, animations?: THREE.AnimationClip[]) => {
@@ -459,9 +472,12 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         model.position.z -= center.z;
       }
       model.position.y -= scaled.min.y;
+      let importedMeshIndex = 0;
       model.traverse((node) => {
         const mesh = node as THREE.Mesh;
         if (!mesh.isMesh) return;
+        if (!isAvatar) mesh.visible = !(stateRef.current.lowDetail && stateRef.current.levelId === "code-city") || importedMeshIndex % 3 === 0;
+        importedMeshIndex += 1;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         if (isAvatar) {
@@ -499,9 +515,12 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       };
       const loaded = (model: THREE.Object3D, animations?: THREE.AnimationClip[]) => {
         placeSessionModel(model, target, targetHeight, isAvatar, animations);
-        reportEnvironment({ phase: "ready", loaded: 1, total: 1 });
+        if (!isAvatar) {
+          environmentReady = true;
+          requestAnimationFrame(() => reportEnvironment({ phase: "ready", loaded: 1, total: 1 }));
+        }
       };
-      const progress = (event: ProgressEvent<EventTarget>) => reportEnvironment({ phase: "loading", loaded: event.loaded, total: event.total || 0 });
+      const progress = (event: ProgressEvent<EventTarget>) => { if (!environmentReady) reportEnvironment({ phase: "loading", loaded: event.loaded, total: event.total || 0 }); };
       if (url.toLowerCase().split("?")[0].endsWith(".fbx")) {
         fbxLoader.setResourcePath(url.slice(0, url.lastIndexOf("/") + 1));
         fbxLoader.load(url, (model) => loaded(model, model.animations), progress, failed);
@@ -518,12 +537,12 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       clearGroup(landmarkRoot);
       island.clear();
       island.add(roundedIsland(palette, atlasTexture));
-      const atlasUnderlay = new THREE.Mesh(new THREE.PlaneGeometry(51, 34), new THREE.MeshBasicMaterial({ map: atlasTexture, transparent: true, opacity: next.levelId === "night-lab" ? 0.16 : 0.3, color: 0xfff4d6 }));
+      const atlasUnderlay = new THREE.Mesh(new THREE.PlaneGeometry(51, 34), new THREE.MeshBasicMaterial({ map: atlasTexture, transparent: true, opacity: next.levelId === "night-lab" ? 0.16 : next.levelId === "code-city" ? 0.42 : 0.3, color: 0xfff4d6 }));
       atlasUnderlay.rotation.x = -Math.PI / 2;
       atlasUnderlay.rotation.z = Math.PI;
       atlasUnderlay.position.y = 0.045;
       levelRoot.add(atlasUnderlay);
-      const waterBands = new THREE.Mesh(new THREE.RingGeometry(25.5, 33, 64), new THREE.MeshBasicMaterial({ color: palette.water, transparent: true, opacity: 0.44, side: THREE.DoubleSide }));
+      const waterBands = new THREE.Mesh(new THREE.RingGeometry(25.5, 33, 64), new THREE.MeshBasicMaterial({ color: palette.water, transparent: true, opacity: next.levelId === "code-city" ? 0.6 : 0.44, side: THREE.DoubleSide }));
       waterBands.rotation.x = -Math.PI / 2;
       waterBands.scale.z = 0.69;
       waterBands.position.y = -1.36;
@@ -550,7 +569,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
           toWorld({ x: 75, y: 47 }).add(new THREE.Vector3(0, 0.22, 0)),
           toWorld({ x: 83, y: 63 }).add(new THREE.Vector3(0, 0.2, 0)),
         ]);
-        const cityRibbon = new THREE.Mesh(new THREE.TubeGeometry(cityRoute, 72, 0.16, 7, false), new THREE.MeshStandardMaterial({ color: 0xf6d996, emissive: 0x5d4215, emissiveIntensity: 0.12, roughness: 0.92 }));
+        const cityRibbon = new THREE.Mesh(new THREE.TubeGeometry(cityRoute, 72, 0.22, 8, false), new THREE.MeshStandardMaterial({ color: 0xf6d996, emissive: 0x5d4215, emissiveIntensity: 0.2, roughness: 0.92 }));
         levelRoot.add(cityRibbon);
         cityRoute.getSpacedPoints(16).forEach((point, index) => {
           if (index % 2) return;
@@ -576,7 +595,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         terminal.scale.setScalar(0.78);
         landmarkRoot.add(terminal);
       });
-      for (let propIndex = 0; propIndex < 12; propIndex += 1) {
+      const propCount = next.levelId === "code-city" && next.lowDetail ? 4 : 12;
+      for (let propIndex = 0; propIndex < propCount; propIndex += 1) {
         const angle = propIndex * 1.83;
         const radius = 7 + (propIndex % 4) * 3.2;
         const prop = next.levelId === "south-shore" ? createPalm()
@@ -602,7 +622,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         flag.position.copy(point).add(new THREE.Vector3(0, 0.05, flagIndex % 2 ? 0.9 : -0.9));
         levelRoot.add(flag);
       }
-      for (let rock = 0; rock < 36; rock += 1) {
+      const rockCount = next.levelId === "code-city" && next.lowDetail ? 10 : 36;
+      for (let rock = 0; rock < rockCount; rock += 1) {
         const angle = rock * 2.399;
         const radius = 5 + (rock % 9) * 2.05;
         const boulder = new THREE.Mesh(new THREE.DodecahedronGeometry(0.24 + (rock % 3) * 0.12, 0), new THREE.MeshStandardMaterial({ color: rock % 2 ? 0x577a50 : 0x70915c, roughness: 1 }));
@@ -612,6 +633,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         levelRoot.add(boulder);
       }
       loadedLevel = next.levelId;
+      lowDetailActive = next.lowDetail;
     };
 
     const resize = () => {
@@ -627,9 +649,15 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
 
     const render = (time: number) => {
       const state = stateRef.current;
-      if (loadedLevel !== state.levelId) rebuildLevel(state);
+      if (loadedLevel !== state.levelId || lowDetailActive !== state.lowDetail) rebuildLevel(state);
+      const applyLowDetail = state.lowDetail && state.levelId === "code-city";
+      renderer.setPixelRatio(applyLowDetail ? 1 : Math.min(window.devicePixelRatio, 1.7));
+      renderer.shadowMap.enabled = !applyLowDetail;
+      sun.castShadow = !applyLowDetail;
+      applyEnvironmentDetail(applyLowDetail);
       if (state.environmentModelUrl !== loadedEnvironmentUrl) {
         loadedEnvironmentUrl = state.environmentModelUrl;
+        environmentReady = false;
         clearGroup(importedEnvironment);
         importedEnvironment.position.set(0, 0, 0);
         importedEnvironment.rotation.set(0, 0, 0);

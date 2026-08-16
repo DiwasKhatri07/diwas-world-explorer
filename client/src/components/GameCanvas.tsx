@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight, Camera, Check, ChevronLeft, ChevronRight, Compass, Crosshair,
   Eye, Footprints, Gamepad2, Github, Hand, Keyboard, Map, Mic, MousePointer2, Navigation,
-  Orbit, Play, RefreshCw, Shield, Sparkles, Swords, Upload, UserRound, Volume2, VolumeX, X, Zap,
+  Orbit, Play, RefreshCw, Shield, Sparkles, Swords, Upload, UserRound, Volume2, VolumeX, X, Zap, Gauge,
 } from "lucide-react";
 import { AudioManager } from "@/game/AudioManager";
 import ThreeExpedition, { type EnvironmentLoadState } from "@/components/ThreeExpedition";
@@ -14,7 +14,7 @@ import { useGithubActivity } from "@/hooks/useGithubActivity";
 import { expeditionLevels, levelById, menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
 
 type Position = { x: number; y: number };
-type EntryStage = "menu" | "tutorial" | "world";
+type EntryStage = "menu" | "calibration" | "tutorial" | "world";
 type ControlMode = "mouse" | "keyboard" | "hand" | "voice";
 type ViewMode = "atlas" | "close";
 type WorldMode = "2d" | "3d";
@@ -46,6 +46,7 @@ const requestedLevel = typeof window !== "undefined" ? new URLSearchParams(windo
 const requestedWorldMode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("mode") : null;
 const initialLevelId: ExpeditionLevelId = requestedLevel && requestedLevel in levelById ? requestedLevel as ExpeditionLevelId : "south-shore";
 const initialWorldMode: WorldMode = requestedWorldMode === "3d" ? "3d" : "2d";
+const cityDeliveryStops = ["signal-crossing", "skyline-cache", "wayfinder-kiosk"] as const;
 
 const tutorialSteps = [
   { title: "Choose a route", body: "Pick Mouse, Keyboard, Hand Route, or Voice. You can switch any time from the command dock.", icon: Navigation },
@@ -73,6 +74,10 @@ export default function GameCanvas() {
   const [cityAssetRevision, setCityAssetRevision] = useState(0);
   const [cityLoad, setCityLoad] = useState<EnvironmentLoadState>({ phase: "loading", loaded: 0, total: 0 });
   const [cityLoadHidden, setCityLoadHidden] = useState(false);
+  const [cityLowDetail, setCityLowDetail] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 760px)").matches);
+  const [deliveryStep, setDeliveryStep] = useState(0);
+  const [deliveryStatus, setDeliveryStatus] = useState("Take the sealed route satchel to Signal Crossing.");
+  const [calibrationStep, setCalibrationStep] = useState(0);
   const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(defaultMaleCharacterUrl);
   const [environmentModelName, setEnvironmentModelName] = useState("");
   const [avatarModelName, setAvatarModelName] = useState("");
@@ -110,6 +115,7 @@ export default function GameCanvas() {
   const handLastActionRef = useRef(0);
   const handGestureRef = useRef({ candidate: "none", candidateSince: 0, active: "", lastForward: 0 });
   const handStatusRef = useRef(handStatus);
+  const calibrationStepRef = useRef(calibrationStep);
   const interactRef = useRef<() => void>(() => undefined);
 
   const level = levelById[levelId];
@@ -119,6 +125,9 @@ export default function GameCanvas() {
   const levelIndex = expeditionLevels.findIndex((world) => world.id === levelId);
   const isMoving = Boolean(target);
   const isFrontier = levelId === "rpg-frontier";
+  const isCodeCity = levelId === "code-city";
+  const deliveryTargetId = cityDeliveryStops[Math.min(deliveryStep, cityDeliveryStops.length - 1)];
+  const deliveryTarget = isCodeCity ? level.stations.find((station) => station.id === deliveryTargetId) ?? null : null;
   const cityNavigationStation = levelId === "code-city" ? level.stations.reduce((closest, station) => distance(target ?? position, station) < distance(target ?? position, closest) ? station : closest, level.stations[0]) : null;
   const cityCompassAngle = cityNavigationStation ? Math.atan2(cityNavigationStation.x - position.x, position.y - cityNavigationStation.y) * (180 / Math.PI) : 0;
   const cityLoadPercent = cityLoad.total > 0 ? Math.min(100, Math.round((cityLoad.loaded / cityLoad.total) * 100)) : cityLoad.loaded > 0 ? 8 : 3;
@@ -198,6 +207,7 @@ export default function GameCanvas() {
   useEffect(() => { stageRef.current = stage; }, [stage]);
   useEffect(() => { activeRef.current = active; }, [active]);
   useEffect(() => { controlModeRef.current = controlMode; }, [controlMode]);
+  useEffect(() => { calibrationStepRef.current = calibrationStep; }, [calibrationStep]);
 
   useEffect(() => {
     if (levelId === "code-city" && worldMode === "3d" && !environmentModelUrl) {
@@ -205,6 +215,13 @@ export default function GameCanvas() {
       setCityLoadHidden(false);
     }
   }, [levelId, worldMode, environmentModelUrl, cityAssetRevision]);
+
+  useEffect(() => {
+    if (levelId === "code-city") {
+      setDeliveryStep(0);
+      setDeliveryStatus("Take the sealed route satchel to Signal Crossing.");
+    }
+  }, [levelId]);
 
   useEffect(() => {
     if (!cameraActive || !videoRef.current || !streamRef.current) return;
@@ -283,11 +300,25 @@ export default function GameCanvas() {
     setCityAssetRevision((value) => value + 1);
   };
 
+  const advanceDelivery = (stationId: string) => {
+    if (!isCodeCity || stationId !== deliveryTargetId) return;
+    if (deliveryStep >= cityDeliveryStops.length - 1) {
+      setDeliveryStep(cityDeliveryStops.length);
+      setDeliveryStatus("Delivery complete. The Wayfinder Kiosk has stamped your city-route pass.");
+      return;
+    }
+    const nextStep = deliveryStep + 1;
+    const nextStation = level.stations.find((station) => station.id === cityDeliveryStops[nextStep]);
+    setDeliveryStep(nextStep);
+    setDeliveryStatus(`Satchel transferred. Follow the parchment ribbon to ${nextStation?.name ?? "the next stop"}.`);
+  };
+
   const interact = () => {
     const stationId = nearbyRef.current;
     if (!stationId || stageRef.current === "menu") return;
     setActive(stationId);
     setDiscoveries((current) => current.includes(stationId) ? current : [...current, stationId]);
+    advanceDelivery(stationId);
     audioRef.current?.playDiscover();
     if (stageRef.current === "tutorial") setTutorialStep(4);
   };
@@ -432,7 +463,17 @@ export default function GameCanvas() {
               tracker.active = "";
               writeHandStatus("Gesture guide: thumbs-up = forward · open palm = stop · pinch = open note.");
             } else if (now - tracker.candidateSince > 180) {
-              if (gesture === "stop" && tracker.active !== "stop") {
+              const calibrationGesture = ["forward", "stop", "pinch"][calibrationStepRef.current];
+              if (stageRef.current === "calibration" && gesture === calibrationGesture && tracker.active !== `calibration-${gesture}`) {
+                tracker.active = `calibration-${gesture}`;
+                const nextStep = Math.min(3, calibrationStepRef.current + 1);
+                calibrationStepRef.current = nextStep;
+                setCalibrationStep(nextStep);
+                audioRef.current?.playGesture();
+                writeHandStatus(nextStep === 3 ? "Calibration complete. Your Hand Route is ready." : "Confirmed. Hold the next gesture shown on the field card.");
+              } else if (stageRef.current === "calibration") {
+                writeHandStatus("Hold the gesture shown on the field card until it confirms.");
+              } else if (gesture === "stop" && tracker.active !== "stop") {
                 tracker.active = "stop";
                 targetRef.current = null;
                 setTarget(null);
@@ -559,7 +600,7 @@ export default function GameCanvas() {
         style={{ transformOrigin: `${position.x}% ${position.y}%` }}
       />
       {worldMode === "2d" && <div className="code-notes" aria-hidden="true"><span>const craft = curiosity;</span><span>git push → horizon</span><span>await next_route()</span></div>}
-      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={activeEnvironmentModelUrl} avatarModelUrl={avatarModelUrl} onEnvironmentLoad={(state) => { if (levelRef.current === "code-city" && !environmentModelUrl) setCityLoad(state); }} />}
+      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={activeEnvironmentModelUrl} avatarModelUrl={avatarModelUrl} lowDetail={isCodeCity && cityLowDetail} onEnvironmentLoad={(state) => { if (levelRef.current === "code-city" && !environmentModelUrl) setCityLoad((current) => current.phase === "ready" && state.phase !== "ready" ? current : state); }} />}
       <div
         className="world-map-layer"
         role="button"
@@ -594,7 +635,8 @@ export default function GameCanvas() {
       </header>
       <button className="credits-toggle" onClick={() => setCreditsOpen(true)}>Credits camp</button>
 
-      {worldMode === "3d" && levelId === "code-city" && cityNavigationStation && <aside className="city-compass" aria-label="Code City route compass"><div className="city-compass-dial"><i style={{ transform: `rotate(${cityCompassAngle}deg)` }}><Navigation size={18} fill="currentColor" /></i><span>N</span></div><div><small>Route bearing</small><strong>{cityNavigationStation.name}</strong><p>{Math.max(1, Math.round(distance(position, cityNavigationStation)))} paces away</p></div></aside>}
+      {worldMode === "3d" && isCodeCity && <aside className="city-mini-map" aria-label="Code City mini-map"><div className="mini-map-header"><span className="tiny-kicker">City field map</span><span>{deliveryStep >= cityDeliveryStops.length ? "Delivered" : `${deliveryStep + 1}/3`}</span></div><div className="mini-map-canvas"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M48 77 C42 72 38 68 38 68 S24 48 24 48 S55 44 55 44 S67 25 67 25 S75 47 75 47 S83 63 83 63" /></svg>{level.stations.map((station) => <button className={`mini-station ${station.id === deliveryTargetId ? "is-target" : ""} ${discoveries.includes(station.id) ? "is-found" : ""}`} key={`map-${station.id}`} style={{ left: `${station.x}%`, top: `${station.y}%` }} onClick={() => moveTo(station)} aria-label={`Set ${station.name} as destination`} />)}<i className="mini-player" style={{ left: `${position.x}%`, top: `${position.y}%` }} /></div><div className="mini-map-footer"><Navigation size={12} style={{ transform: `rotate(${cityCompassAngle}deg)` }} /><span>{deliveryTarget?.name ?? "Route complete"}</span></div></aside>}
+      {worldMode === "3d" && isCodeCity && !activeStation && <aside className="city-delivery-quest" aria-label="Code City delivery quest"><p className="tiny-kicker">City courier</p><strong>{deliveryStep >= cityDeliveryStops.length ? "Route pass stamped" : `Satchel delivery · ${deliveryStep + 1}/3`}</strong><p>{deliveryStatus}</p>{deliveryTarget && deliveryStep < cityDeliveryStops.length && <button onClick={() => moveTo(deliveryTarget)}><Navigation size={13} /> Set route to {deliveryTarget.name}</button>}</aside>}
       {cityLoadingVisible && <section className={`city-loading-screen is-${cityLoad.phase}`} aria-live="polite"><div className="city-loading-mark"><img src={compassMark} alt="" /></div><p className="tiny-kicker">Code City model bay</p><h2>{cityLoad.phase === "error" ? "The skyline needs another signal." : "Unfolding the city skyline."}</h2><p>{cityLoad.phase === "error" ? "The expedition is still playable with the illustrated fallback. Retry the city route when your connection is ready." : `Opening the city route${cityLoad.total ? ` · ${cityLoadPercent}%` : ""}.`}</p><div className="city-loading-bar" aria-label={`City asset progress ${cityLoadPercent}%`}><i style={{ width: `${cityLoad.phase === "error" ? 100 : cityLoadPercent}%` }} /></div>{cityLoad.phase === "error" ? <div className="city-loading-actions"><button onClick={retryCityAsset}>Retry city route</button><button onClick={() => setCityLoadHidden(true)}>Explore fallback</button></div> : <small>Keep this field note open while the skyline reaches the atlas.</small>}</section>}
 
       <aside className="field-notes" aria-label="Exploration progress">
@@ -605,7 +647,7 @@ export default function GameCanvas() {
       </aside>
 
       <aside className="github-log" aria-label="Live GitHub activity">
-        <div className="github-log-heading"><span className="tiny-kicker"><Github size={13} /> Signal log</span><button onClick={() => void refreshGithub()} aria-label="Refresh GitHub activity"><RefreshCw size={13} /></button></div>
+        <div className="github-log-heading"><span className="tiny-kicker"><Github size={13} /> Signal record</span><button onClick={() => void refreshGithub()} aria-label="Refresh signal record"><RefreshCw size={13} /></button></div>
         {githubStatus === "loading" && <p>Reading public activity…</p>}
         {githubStatus === "error" && <p>Activity is temporarily unavailable. Refresh to try again.</p>}
         {githubStatus === "ready" && <ul>{githubItems.slice(0, 3).map((item) => <li key={item.id}><a href={item.url} target="_blank" rel="noreferrer"><strong>{item.repository}</strong><span>{item.title} · {item.date}</span></a></li>)}</ul>}
@@ -613,7 +655,7 @@ export default function GameCanvas() {
       </aside>
 
       <button className="audio-toggle" onClick={() => soundOn ? (audioRef.current?.toggle(), setSoundOn(false)) : void enableSound()} aria-pressed={soundOn}>
-        {soundOn ? <Volume2 size={16} strokeWidth={1.8} /> : <VolumeX size={16} strokeWidth={1.8} />}<span>{soundOn ? "Sound on" : "Enable sound"}</span>
+        {soundOn ? <Volume2 size={16} strokeWidth={1.8} /> : <VolumeX size={16} strokeWidth={1.8} />}<span>{soundOn ? "Ambient on" : "Awaken ambience"}</span>
       </button>
 
       <nav className="level-rail" aria-label="Expedition levels">
@@ -628,6 +670,7 @@ export default function GameCanvas() {
         <button className={controlMode === "mouse" ? "is-active" : ""} onClick={() => setControlMode("mouse")}><MousePointer2 size={15} /><span>Mouse</span></button>
         <button className={controlMode === "keyboard" ? "is-active" : ""} onClick={() => setControlMode("keyboard")}><Keyboard size={15} /><span>Keys</span></button>
         <button className={controlMode === "hand" ? "is-active" : ""} onClick={() => { if (cameraActive) { setControlMode("hand"); setEyeTracking(false); setHandTracking(true); calibrateHandRoute(); } else setPermissionSheet("hand"); }}><Hand size={15} /><span>Hand</span></button>
+        {isCodeCity && <button className={cityLowDetail ? "is-active" : ""} onClick={() => setCityLowDetail((value) => !value)}><Gauge size={15} /><span>{cityLowDetail ? "Detail low" : "Detail full"}</span></button>}
         <button className={eyeTracking ? "is-active" : ""} onClick={() => cameraActive ? (setEyeTracking(true), setHandTracking(false)) : setPermissionSheet("eye")}><Eye size={15} /><span>Eyes</span></button>
         <button className={controlMode === "voice" ? "is-active" : ""} onClick={requestVoiceRoute}><Mic size={15} /><span>Speak</span></button>
         <button onClick={() => { setEmote((value) => value + 1); void enableSound(); }}><Zap size={15} /><span>Dance</span></button>
@@ -648,6 +691,10 @@ export default function GameCanvas() {
 
       {stage === "world" && nearbyStation && !activeStation && (
         <button className="nearby-prompt" onClick={interact}><span className="prompt-flower"><Sparkles size={16} /></span><span><small>Nearby station</small><strong>{nearbyStation.name}</strong></span><kbd>E</kbd></button>
+      )}
+
+      {stage === "calibration" && (
+        <section className="hand-calibration" aria-live="polite"><div className="calibration-mark"><Hand size={24} /></div><p className="tiny-kicker">Scout Cam field test · {Math.min(calibrationStep + 1, 3)}/3</p><h2>{calibrationStep === 0 ? "Show a steady thumbs-up." : calibrationStep === 1 ? "Open your palm to stop." : calibrationStep === 2 ? "Pinch to open a route note." : "Hand Route confirmed."}</h2><p>{cameraActive ? "Keep one hand in the preview and hold the shown gesture until it receives a coral confirmation." : "Practice the controls before the expedition begins. Camera processing stays local to your browser."}</p><div className="calibration-steps"><span className={calibrationStep > 0 ? "is-done" : "is-current"}>1 · Forward</span><span className={calibrationStep > 1 ? "is-done" : calibrationStep === 1 ? "is-current" : ""}>2 · Stop</span><span className={calibrationStep > 2 ? "is-done" : calibrationStep === 2 ? "is-current" : ""}>3 · Open</span></div>{!cameraActive && <button className="calibration-primary" onClick={() => setPermissionSheet("hand")}><Camera size={16} /> Enable Scout Cam</button>}{calibrationStep === 3 && <button className="calibration-primary" onClick={() => { setStage("tutorial"); setTutorialStep(0); }}><Check size={16} /> Continue with calibrated controls</button>}<button className="tutorial-skip" onClick={() => { setStage("tutorial"); setTutorialStep(0); }}>Continue with mouse and keys</button></section>
       )}
 
       {stage === "tutorial" && (
@@ -688,7 +735,7 @@ export default function GameCanvas() {
             <div className="menu-overline"><img src={compassMark} alt="" /> DIWAS WORLD EXPLORER</div>
             <h2>Begin at the shore.<br /><em>Build toward the horizon.</em></h2>
             <p>An interactive personal world: project archives, learning routes, and field notes gathered into one expanding atlas.</p>
-            <div className="menu-actions"><button className="menu-start" onClick={() => { setStage("tutorial"); setTutorialStep(0); }}><Play size={16} fill="currentColor" /> Start expedition</button><button className="menu-skip" onClick={() => setStage("world")}>Enter without briefing <ChevronRight size={15} /></button></div>
+            <div className="menu-actions"><button className="menu-start" onClick={() => { setStage("calibration"); setCalibrationStep(0); }}><Play size={16} fill="currentColor" /> Calibrate & start</button><button className="menu-skip" onClick={() => setStage("world")}>Enter without briefing <ChevronRight size={15} /></button></div>
             <div className="starter-kit"><label><UserRound size={14} /> Explorer call sign<input value={playerName} maxLength={16} onChange={(event) => setPlayerName(event.target.value || "Diwas")} /></label><label><Upload size={14} /> City route GLB <input type="file" accept=".glb,model/gltf-binary" onChange={(event) => prepareModel(event, "environment")} /></label><label><Upload size={14} /> Avatar GLB / FBX <input type="file" accept=".glb,.fbx,model/gltf-binary" onChange={(event) => prepareModel(event, "avatar")} /></label><small>{environmentModelName || avatarModelName ? `Session route cargo: ${[environmentModelName, avatarModelName].filter(Boolean).join(" · ")}` : "Uploaded male character is now the default 3D player."}</small></div>
             <div className="menu-meta"><span><Crosshair size={13} /> {expeditionLevels.length} routes</span><span><Zap size={13} /> {allStations.length} stations</span><span><Orbit size={13} /> 2 views</span></div>
           </div>
