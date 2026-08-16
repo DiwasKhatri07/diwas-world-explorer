@@ -98,8 +98,8 @@
 
 # Source Publication and Search Readiness
 
-- [ ] Review the current application metadata, robots configuration, and local Git state.
-- [ ] Add complete SEO metadata, social cards, structured data, sitemap, and crawl guidance.
-- [ ] Write a complete README covering setup, controls, architecture, credits, performance, and deployment.
-- [ ] Create a GitHub repository and push the complete source code with clean ignores.
-- [ ] Verify the remote repository contents and record the published source URL.
+- [x] Review the current application metadata, robots configuration, and local Git state.
+- [x] Add complete SEO metadata, social cards, structured data, sitemap, and crawl guidance.
+- [x] Write a complete README covering setup, controls, architecture, credits, performance, and deployment.
+- [x] Create a GitHub repository and push the complete source code with clean ignores.
+- [x] Verify the remote repository contents and record the published source URL.
