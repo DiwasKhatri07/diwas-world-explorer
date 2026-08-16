@@ -103,3 +103,11 @@
 - [x] Write a complete README covering setup, controls, architecture, credits, performance, and deployment.
 - [x] Create a GitHub repository and push the complete source code with clean ignores.
 - [x] Verify the remote repository contents and record the published source URL.
+
+# Public Repository Showcase Upgrade
+
+- [ ] Review the current GitHub description, topics, visibility, README, and contributor-facing materials.
+- [ ] Expand the README with badges, live demo links, feature tour, setup, control tutorial, troubleshooting, and complete credits.
+- [ ] Add issue templates and a contributing guide for a usable public project experience.
+- [ ] Set a clear repository description, title context, and discoverable GitHub topics.
+- [ ] Change the repository to public and verify the live public code and documentation pages.
