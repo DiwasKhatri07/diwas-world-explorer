@@ -89,3 +89,5 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - Compass Coral #FF715B is reserved for markers, active route prompts, field-note progress, and other discoveries; it is never used as the large background color.
 - Narrative copy is written as a clear, poetic field guide: route logs, field notes, kit inventories, and signal coordinates replace any placeholder or conventional portfolio language.
 - Discovery panels are treated as expedition artifacts with map-paper texture, archival labels, route dividers, and restrained coral verification rules.
+- The world image treatment favors a sunlit, sea-glass travel atlas: softened shadows, turquoise water, parchment sand, and visible route-like composition must outweigh cinematic darkness.
+- All overlays use physical expedition-artifact cues—paper grain, imperfect ink keylines, archival labels, route dividers, and stamp-like numerals—rather than generic game-HUD boxes.
