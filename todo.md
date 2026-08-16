@@ -37,3 +37,16 @@
 - [x] Expand the guided tutorial with camera-hand controls, reaction actions, and recovery instructions.
 - [x] Upgrade the entry screen with layered motion, map-drawing/coding motifs, and richer animated transitions.
 - [x] Verify the hybrid modes, character actions, and hand-control feedback on desktop and mobile before delivery.
+
+# Model-Ready Game Expansion
+
+- [x] Review the linked Sketchfab models for licensing, download availability, and scene-fit constraints.
+- [x] Prepare GLB/GLTF import slots for user-provided environment and anime-coder avatar models.
+- [x] Add player naming/customization controls and more readable walking, idle, dance, and action reactions.
+- [x] Expand the world map list with new themed routes and model-ready destination cards.
+- [x] Add simple non-graphic enemy encounters, a small stamina/health HUD, and a lightweight combat interaction.
+- [x] Revise hand controls: thumbs-up moves forward, open palm stops; add guidance and visual status feedback.
+- [x] Explore a permission-gated eye-attention interaction with a keyboard/mouse fallback.
+- [x] Add a polished starter UI, developer credits, and a game guide overlay.
+- [x] Verify the model fallback, input modes, customization, and combat flows before delivery.
+- [ ] Replace the session-only fallback with Diwas’s final uploaded anime-coder avatar and licensed environment GLB files.

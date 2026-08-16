@@ -16,6 +16,8 @@
 | Terrain detail | Seamless material reference for future close-up terrain expansion | `/manus-storage/diwas-terrain-detail-v2_35bb2c0e.png` | Reserved for terrain material work. |
 | Map stamps | Coral waypoint sprite-sheet | `/manus-storage/diwas-map-stamps-v2_142e7487.png` | Reserved for future waypoint and map-stamp variation. |
 | Island ambience | User-gesture-activated looping ambient soundtrack | `/manus-storage/diwas-island-ambient_44fb9747.mp3` | Played at low volume while the player explores. |
+| Low Poly City (external candidate) | Browser-game city environment reference | https://sketchfab.com/3d-models/low-poly-city-23e03868654d47f69fa5db2413e580c3 | CC BY 4.0 listing; requires a supplied downloadable model package and attribution before use. |
+| SMILE GAME BUILDER Sample MAP (external candidate) | RPG-level structure reference | https://sketchfab.com/3d-models/smile-game-builder-sample-map-081fb5468bd14e56b5caa0031ce28cf1 | Download license is not confirmed in accessible page content; do not import until a licensed model file is supplied. |
 
 ## Asset Notes
 

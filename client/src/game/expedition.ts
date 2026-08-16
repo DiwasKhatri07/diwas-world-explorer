@@ -2,7 +2,7 @@
  * Interactive Expedition Portfolio content model: every level maps public project work
  * into an explorable station, while omitting personal contact and school details.
  */
-export type ExpeditionLevelId = "south-shore" | "data-observatory" | "builder-harbor" | "night-lab";
+export type ExpeditionLevelId = "south-shore" | "data-observatory" | "builder-harbor" | "night-lab" | "code-city" | "rpg-frontier";
 
 export type ExpeditionStation = {
   id: string;
@@ -245,6 +245,34 @@ export const expeditionLevels: ExpeditionLevel[] = [
         link: "https://github.com/DiwasKhatri07/Nepali-IDE",
         projectPreview: "/manus-storage/nepali-ide-preview_f248af04.png",
       },
+    ],
+  },
+  {
+    id: "code-city",
+    order: "05",
+    name: "Code City",
+    subtitle: "Model-ready district · systems and shipping",
+    background: menuAtlas,
+    spawn: { x: 48, y: 77 },
+    theme: "city",
+    stations: [
+      { id: "city-gate", name: "City Gate", kicker: "District 05 · Model-ready route", title: "A future city district for larger build systems.", description: "Code City is prepared for a supplied GLB or GLTF environment model. Until then, the route stays playable with an illustrated fallback and procedural landmarks.", detail: "Import bay: low-poly city environment · runtime model loader · creator attribution slot.", x: 24, y: 48, type: "focus" },
+      { id: "commit-plaza", name: "Commit Plaza", kicker: "District 05 · Build log", title: "Every shipped idea becomes part of the skyline.", description: "This plaza connects the live public GitHub log with the game world: build, revise, and keep the next commit moving forward.", detail: "Plaza kit: version control · project logs · visible iteration · developer credits.", x: 67, y: 25, type: "focus" },
+      { id: "asset-bay", name: "Asset Bay", kicker: "District 05 · Import station", title: "Bring a model, set the scene, keep the attribution.", description: "The import station is reserved for user-provided GLB or GLTF environments and character models, so the world can evolve without hiding asset provenance.", detail: "Accepted route cargo: .glb · .gltf with textures · authored model credits.", x: 83, y: 63, type: "skills" },
+    ],
+  },
+  {
+    id: "rpg-frontier",
+    order: "06",
+    name: "RPG Frontier",
+    subtitle: "Practice trail · encounters and action routes",
+    background: "/manus-storage/diwas-world-reference_de4e0dc1.png",
+    spawn: { x: 50, y: 78 },
+    theme: "frontier",
+    stations: [
+      { id: "practice-range", name: "Practice Range", kicker: "Frontier 01 · Action route", title: "Learn the action rhythm without losing the exploration thread.", description: "The frontier adds lightweight, non-graphic practice encounters. Use the action button near a training drone to test movement and timing.", detail: "Training kit: action pulse · stamina · recovery · optional combat HUD.", x: 25, y: 56, type: "focus" },
+      { id: "beacon-keep", name: "Beacon Keep", kicker: "Frontier 02 · Route objective", title: "Protect the route, then keep building.", description: "The encounter loop is intentionally simple: it exists to make exploration feel responsive while preserving the portfolio-first purpose of the world.", detail: "Objective note: clear practice encounters, unlock a route badge, continue the expedition.", x: 70, y: 28, type: "focus" },
+      { id: "credits-camp", name: "Credits Camp", kicker: "Frontier 03 · Attribution log", title: "Every route has builders behind it.", description: "Credits Camp records Diwas’s role as world designer and developer, alongside source-model attribution when licensed assets are later imported.", detail: "Credit format: creator · asset source · license · in-world use.", x: 84, y: 65, type: "profile" },
     ],
   },
 ];

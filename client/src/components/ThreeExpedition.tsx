@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
 
 type Position = { x: number; y: number };
@@ -15,6 +16,8 @@ type SceneState = {
   activeStationId: string | null;
   viewMode: "atlas" | "close";
   emote: number;
+  environmentModelUrl: string | null;
+  avatarModelUrl: string | null;
 };
 
 type Props = SceneState & { className?: string };
@@ -25,6 +28,8 @@ const levelPalette: Record<ExpeditionLevelId, { sky: number; water: number; gras
   "data-observatory": { sky: 0x7dcee2, water: 0x2c9bb9, grass: 0x6aa354, sand: 0xd9c58f, glow: 0xff715b },
   "builder-harbor": { sky: 0xffc783, water: 0x3faab4, grass: 0x738f51, sand: 0xf0cf95, glow: 0xff715b },
   "night-lab": { sky: 0x264b78, water: 0x155f87, grass: 0x355f5d, sand: 0xbea36e, glow: 0xff715b },
+  "code-city": { sky: 0xf0b879, water: 0x2d8da0, grass: 0x607c62, sand: 0xe6c783, glow: 0xff715b },
+  "rpg-frontier": { sky: 0x8cbdcf, water: 0x3b9bae, grass: 0x728e4f, sand: 0xe6cf92, glow: 0xff715b },
 };
 
 function roundedIsland(palette: { grass: number; sand: number }, atlasTexture: THREE.Texture) {
@@ -34,7 +39,7 @@ function roundedIsland(palette: { grass: number; sand: number }, atlasTexture: T
   grass.position.y = -0.72;
   grass.receiveShadow = true;
   root.add(grass);
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(20, 48), new THREE.MeshStandardMaterial({ map: atlasTexture, color: 0xfff3d0, roughness: 1, transparent: true, opacity: 0.76 }));
+  const sand = new THREE.Mesh(new THREE.CircleGeometry(20, 48), new THREE.MeshStandardMaterial({ color: palette.sand, roughness: 1 }));
   sand.rotation.x = -Math.PI / 2;
   sand.scale.set(1.08, 0.65, 1);
   sand.position.y = 0.02;
@@ -148,13 +153,28 @@ function createStationMarker(active: boolean) {
   return root;
 }
 
-function createLandmark(kind: number, palette: { sand: number; glow: number }) {
+function createLandmark(kind: number, palette: { sand: number; glow: number }, levelId: ExpeditionLevelId) {
   const root = new THREE.Group();
   const stone = new THREE.MeshStandardMaterial({ color: 0xd7d0bd, roughness: 0.92 });
   const wood = new THREE.MeshStandardMaterial({ color: 0x6d472e, roughness: 0.95 });
   const teal = new THREE.MeshStandardMaterial({ color: 0x216d79, roughness: 0.58, metalness: 0.08 });
   const glow = new THREE.MeshStandardMaterial({ color: palette.glow, emissive: palette.glow, emissiveIntensity: 1.15, roughness: 0.4 });
-  if (kind % 4 === 0) {
+  if (levelId === "code-city") {
+    const buildingMaterial = new THREE.MeshStandardMaterial({ color: 0x244c61, roughness: 0.68 });
+    const paperMaterial = new THREE.MeshStandardMaterial({ color: 0xf4dba5, roughness: 0.85 });
+    for (let block = 0; block < 3; block += 1) {
+      const building = new THREE.Mesh(new THREE.BoxGeometry(0.78, 1.2 + block * 0.45, 0.82), buildingMaterial);
+      building.position.set((block - 1) * 0.66, 0.6 + block * 0.225, block === 1 ? 0.08 : -0.18);
+      root.add(building);
+      const window = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.08, 0.025), paperMaterial);
+      window.position.set((block - 1) * 0.66, 0.72 + block * 0.3, 0.42);
+      root.add(window);
+    }
+    const routeArch = new THREE.Mesh(new THREE.TorusGeometry(0.86, 0.08, 8, 16, Math.PI), glow);
+    routeArch.position.set(0, 0.88, 0.51);
+    routeArch.rotation.y = Math.PI;
+    root.add(routeArch);
+  } else if (kind % 4 === 0) {
     const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.08, 3.6, 18), stone);
     tower.position.y = 1.8;
     tower.castShadow = true;
@@ -252,10 +272,10 @@ function createNightCrystal() {
   return root;
 }
 
-export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, className }: Props) {
+export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote });
-  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote };
+  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl });
+  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -285,6 +305,10 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const player = createPlayer();
     player.position.copy(toWorld(stateRef.current.position));
     scene.add(player);
+    const importedEnvironment = new THREE.Group();
+    const importedAvatar = new THREE.Group();
+    const gltfLoader = new GLTFLoader();
+    scene.add(importedEnvironment, importedAvatar);
     const targetRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.07, 8, 28), new THREE.MeshStandardMaterial({ color: 0xff715b, emissive: 0x5b160e, emissiveIntensity: 1.2 }));
     targetRing.rotation.x = Math.PI / 2;
     targetRing.visible = false;
@@ -299,6 +323,9 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const atlasTexture = textureLoader.load(menuAtlas);
     atlasTexture.colorSpace = THREE.SRGBColorSpace;
     let loadedLevel: ExpeditionLevelId | null = null;
+    let loadedEnvironmentUrl: string | null = null;
+    let loadedAvatarUrl: string | null = null;
+    let avatarImported = false;
     let handledEmote = stateRef.current.emote;
     let danceUntil = 0;
     let lastTime = performance.now();
@@ -315,6 +342,22 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
           else mesh.material?.dispose();
         });
       }
+    };
+
+    const loadSessionModel = (url: string, target: THREE.Group, targetHeight: number, isAvatar: boolean) => {
+      clearGroup(target);
+      gltfLoader.load(url, (gltf) => {
+        const model = gltf.scene;
+        const bounds = new THREE.Box3().setFromObject(model);
+        const size = new THREE.Vector3();
+        bounds.getSize(size);
+        model.scale.setScalar(targetHeight / Math.max(size.y, 0.001));
+        const scaled = new THREE.Box3().setFromObject(model);
+        model.position.y -= scaled.min.y;
+        model.traverse((node) => { const mesh = node as THREE.Mesh; if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; } });
+        target.add(model);
+        if (isAvatar) avatarImported = true;
+      }, undefined, () => { if (isAvatar) avatarImported = false; });
     };
 
     const rebuildLevel = (next: SceneState) => {
@@ -355,7 +398,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         marker.position.copy(point);
         marker.userData.stationIndex = index;
         markerRoot.add(marker);
-        const landmark = createLandmark(index, palette);
+        const landmark = createLandmark(index, palette, next.levelId);
         landmark.position.copy(point.clone().add(new THREE.Vector3(index % 2 === 0 ? 1.8 : -1.8, 0, index % 2 === 0 ? -1.1 : 1.1)));
         landmark.rotation.y = index * 0.74;
         landmarkRoot.add(landmark);
@@ -416,10 +459,24 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const render = (time: number) => {
       const state = stateRef.current;
       if (loadedLevel !== state.levelId) rebuildLevel(state);
+      if (state.environmentModelUrl !== loadedEnvironmentUrl) {
+        loadedEnvironmentUrl = state.environmentModelUrl;
+        clearGroup(importedEnvironment);
+        if (state.environmentModelUrl) loadSessionModel(state.environmentModelUrl, importedEnvironment, 13, false);
+      }
+      if (state.avatarModelUrl !== loadedAvatarUrl) {
+        loadedAvatarUrl = state.avatarModelUrl;
+        avatarImported = false;
+        clearGroup(importedAvatar);
+        if (state.avatarModelUrl) loadSessionModel(state.avatarModelUrl, importedAvatar, 2.35, true);
+      }
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
       const worldPosition = toWorld(state.position);
       player.position.lerp(worldPosition, Math.min(1, dt * 12));
+      importedAvatar.position.copy(player.position);
+      importedAvatar.rotation.y = player.rotation.y;
+      player.visible = !avatarImported;
       if (state.emote !== handledEmote) { handledEmote = state.emote; danceUntil = time + 2500; }
       const leftArm = player.getObjectByName("left-arm");
       const rightArm = player.getObjectByName("right-arm");
@@ -439,6 +496,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         const destination = toWorld(state.target);
         const direction = destination.clone().sub(player.position);
         if (direction.lengthSq() > 0.02) player.rotation.y = Math.atan2(direction.x, direction.z);
+        importedAvatar.rotation.y = player.rotation.y;
         targetRing.visible = true;
         targetRing.position.copy(destination).add(new THREE.Vector3(0, 0.12, 0));
         targetRing.rotation.z += dt * 1.6;
@@ -466,6 +524,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
       clearGroup(levelRoot); clearGroup(markerRoot); clearGroup(landmarkRoot);
+      clearGroup(importedEnvironment); clearGroup(importedAvatar);
       renderer.dispose();
     };
   }, []);
