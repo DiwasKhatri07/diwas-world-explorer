@@ -16,3 +16,14 @@
 - [ ] Replace the custom explorer character with Diwas’s own uploaded photo if requested.
 - [x] Scope device-dependent microphone, speech, and camera features with explicit permission flows before activating them.
 - [x] Verify the expanded experience across desktop and mobile before delivery.
+
+# Real-Time 3D Game Expansion
+
+- [x] Connect the selected public GitHub Events feed for `DiwasKhatri07` with rate-limit fallback and a manual refresh action.
+- [x] Add a live public GitHub activity feed with graceful loading and refresh states.
+- [x] Replace the map-overlay character with a real-time 3D player and responsive third-person game camera.
+- [x] Expand the playable world with additional creative 3D zones, routes, collectibles, and mission prompts.
+- [x] Implement camera hand-gesture control with explicit consent, visual feedback, and a recovery path.
+- [x] Implement opt-in voice-route commands and stylized sound feedback with an accessible control guide.
+- [x] Build a full in-game controls tutorial for mouse/tap, keyboard, camera gesture, and voice modes.
+- [x] Verify desktop, mobile, low-motion, and permission-denial states before delivery.

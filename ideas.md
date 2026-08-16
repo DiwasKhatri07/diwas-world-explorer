@@ -91,3 +91,4 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - Discovery panels are treated as expedition artifacts with map-paper texture, archival labels, route dividers, and restrained coral verification rules.
 - The world image treatment favors a sunlit, sea-glass travel atlas: softened shadows, turquoise water, parchment sand, and visible route-like composition must outweigh cinematic darkness.
 - All overlays use physical expedition-artifact cues—paper grain, imperfect ink keylines, archival labels, route dividers, and stamp-like numerals—rather than generic game-HUD boxes.
+- The playable world must echo the landing poster through an illustrated-atlas terrain layer, turquoise water bands, curved parchment routes, clustered landmark props, and compact route flags; procedural geometry is a deliberate miniature-world construction, never a bare sandbox.

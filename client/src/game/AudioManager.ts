@@ -46,6 +46,14 @@ export class AudioManager {
     this.chime([523, 659, 784], 0.045, 0.36, "triangle");
   }
 
+  public playGesture() {
+    this.chime([740, 988], 0.028, 0.16, "sine");
+  }
+
+  public playVoiceRoute() {
+    this.chime([330, 494, 659], 0.032, 0.24, "triangle");
+  }
+
   private chime(frequencies: number[], gain: number, duration: number, type: OscillatorType) {
     if (!this._enabled || !this.context) return;
     const now = this.context.currentTime;
