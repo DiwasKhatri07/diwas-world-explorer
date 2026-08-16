@@ -206,6 +206,7 @@ function vitePluginStorageProxy(): Plugin {
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
 
 export default defineConfig({
+  base: process.env.VITE_GITHUB_PAGES === "true" ? "/diwas-world-explorer/" : "/",
   plugins,
   resolve: {
     alias: {

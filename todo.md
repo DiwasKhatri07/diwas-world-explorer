@@ -111,3 +111,11 @@
 - [x] Add issue templates and a contributing guide for a usable public project experience.
 - [x] Set a clear repository description, title context, and discoverable GitHub topics.
 - [x] Change the repository to public and verify the live public code and documentation pages.
+
+# Gesture Tutorial, Local Leaderboard, and Pages Deployment
+
+- [ ] Add a visual first-start hand-gesture tutorial overlay with clear pose demonstrations and optional skip behavior.
+- [ ] Add a browser-local fastest-delivery leaderboard with safe storage, ranking, and user-visible context.
+- [ ] Add GitHub Actions workflow files to build and deploy the static production output to GitHub Pages on main pushes.
+- [ ] Configure the Vite base path and static routing support needed by the GitHub Pages deployment target.
+- [ ] Verify the new interactions, workflow YAML, and public GitHub Pages deployment configuration.

@@ -12,6 +12,7 @@ import { AudioManager } from "@/game/AudioManager";
 import ThreeExpedition, { type EnvironmentLoadState } from "@/components/ThreeExpedition";
 import { useGithubActivity } from "@/hooks/useGithubActivity";
 import { expeditionLevels, levelById, menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
+import { assetUrl } from "@/game/assets";
 
 type Position = { x: number; y: number };
 type EntryStage = "menu" | "calibration" | "tutorial" | "world";
@@ -20,6 +21,7 @@ type ViewMode = "atlas" | "close";
 type WorldMode = "2d" | "3d";
 type PermissionSheet = "camera" | "hand" | "eye" | null;
 type HandPoint = { x: number; y: number };
+type DeliveryRecord = { name: string; durationMs: number; completedAt: string };
 type VoiceResultEvent = { results: ArrayLike<ArrayLike<{ transcript: string }>> };
 type VoiceRecognizer = {
   lang: string;
@@ -32,13 +34,13 @@ type VoiceRecognizer = {
 };
 type VoiceWindow = Window & { SpeechRecognition?: new () => VoiceRecognizer; webkitSpeechRecognition?: new () => VoiceRecognizer };
 
-const compassMark = "/manus-storage/compass-flower-mark_17aed5f6.png";
-const explorerAvatar = "/manus-storage/diwas-explorer-character-v3_3345cae2.png";
-const fallbackAvatar = "/manus-storage/diwas-avatar_07dadb43.png";
-const totemSheet = "/manus-storage/landmark-totems_89545891.png";
-const ambienceUrl = "/manus-storage/diwas-island-ambient_44fb9747.mp3";
-const defaultMaleCharacterUrl = "/manus-storage/Male05_f2f8ab35.fbx";
-const defaultCityEnvironmentUrl = "/manus-storage/Untitled-web_328ae43c.glb";
+const compassMark = assetUrl("/manus-storage/compass-flower-mark_17aed5f6.png");
+const explorerAvatar = assetUrl("/manus-storage/diwas-explorer-character-v3_3345cae2.png");
+const fallbackAvatar = assetUrl("/manus-storage/diwas-avatar_07dadb43.png");
+const totemSheet = assetUrl("/manus-storage/landmark-totems_89545891.png");
+const ambienceUrl = assetUrl("/manus-storage/diwas-island-ambient_44fb9747.mp3");
+const defaultMaleCharacterUrl = assetUrl("/manus-storage/Male05_f2f8ab35.fbx");
+const defaultCityEnvironmentUrl = assetUrl("/manus-storage/Untitled-web_328ae43c.glb");
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (first: Position, second: Position) => Math.hypot(first.x - second.x, first.y - second.y);
 const demoMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
@@ -47,6 +49,16 @@ const requestedWorldMode = typeof window !== "undefined" ? new URLSearchParams(w
 const initialLevelId: ExpeditionLevelId = requestedLevel && requestedLevel in levelById ? requestedLevel as ExpeditionLevelId : "south-shore";
 const initialWorldMode: WorldMode = requestedWorldMode === "3d" ? "3d" : "2d";
 const cityDeliveryStops = ["signal-crossing", "skyline-cache", "wayfinder-kiosk"] as const;
+const deliveryLeaderboardKey = "diwas-world-explorer-courier-leaderboard-v1";
+const gestureTutorialKey = "diwas-world-explorer-gesture-overlay-seen-v1";
+const formatDeliveryTime = (durationMs: number) => `${Math.floor(durationMs / 60000)}:${Math.floor((durationMs % 60000) / 1000).toString().padStart(2, "0")}.${Math.floor((durationMs % 1000) / 100)}`;
+const readDeliveryLeaderboard = (): DeliveryRecord[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const value = JSON.parse(window.localStorage.getItem(deliveryLeaderboardKey) ?? "[]") as DeliveryRecord[];
+    return Array.isArray(value) ? value.filter((entry) => typeof entry?.name === "string" && Number.isFinite(entry?.durationMs)).sort((a, b) => a.durationMs - b.durationMs).slice(0, 5) : [];
+  } catch { return []; }
+};
 
 const tutorialSteps = [
   { title: "Choose a route", body: "Pick Mouse, Keyboard, Hand Route, or Voice. You can switch any time from the command dock.", icon: Navigation },
@@ -78,9 +90,13 @@ export default function GameCanvas() {
   const [deliveryStep, setDeliveryStep] = useState(0);
   const [deliveryStatus, setDeliveryStatus] = useState("Take the sealed route satchel to Signal Crossing.");
   const [deliveryCompleteStamp, setDeliveryCompleteStamp] = useState(false);
+  const [deliveryStartedAt, setDeliveryStartedAt] = useState<number | null>(null);
+  const [deliveryElapsedMs, setDeliveryElapsedMs] = useState(0);
+  const [deliveryLeaderboard, setDeliveryLeaderboard] = useState<DeliveryRecord[]>(readDeliveryLeaderboard);
   const [mapStationId, setMapStationId] = useState<string | null>(null);
   const [recognizedGesture, setRecognizedGesture] = useState<"forward" | "stop" | "pinch" | null>(null);
   const [calibrationStep, setCalibrationStep] = useState(0);
+  const [showGestureTutorial, setShowGestureTutorial] = useState(() => typeof window !== "undefined" && !demoMode && window.localStorage.getItem(gestureTutorialKey) !== "seen");
   const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(defaultMaleCharacterUrl);
   const [environmentModelName, setEnvironmentModelName] = useState("");
   const [avatarModelName, setAvatarModelName] = useState("");
@@ -136,6 +152,7 @@ export default function GameCanvas() {
   const cityNavigationStation = levelId === "code-city" ? level.stations.reduce((closest, station) => distance(target ?? position, station) < distance(target ?? position, closest) ? station : closest, level.stations[0]) : null;
   const cityCompassAngle = cityNavigationStation ? Math.atan2(cityNavigationStation.x - position.x, position.y - cityNavigationStation.y) * (180 / Math.PI) : 0;
   const cityLoadPercent = cityLoad.phase === "ready" ? 100 : cityLoad.total > 0 ? Math.min(99, Math.round((cityLoad.loaded / cityLoad.total) * 100)) : cityLoad.loaded > 0 ? 8 : 3;
+  const deliveryTimerLabel = formatDeliveryTime(deliveryElapsedMs);
   const cityLoadingVisible = worldMode === "3d" && levelId === "code-city" && !environmentModelUrl && cityLoad.phase !== "ready" && !cityLoadHidden;
   const activeEnvironmentModelUrl = environmentModelUrl || (levelId === "code-city" ? `${defaultCityEnvironmentUrl}?city-route=${cityAssetRevision}` : null);
   const writeHandStatus = (message: string) => {
@@ -232,9 +249,17 @@ export default function GameCanvas() {
       setDeliveryStep(0);
       setDeliveryStatus("Take the sealed route satchel to Signal Crossing.");
       setDeliveryCompleteStamp(false);
+      setDeliveryStartedAt(null);
+      setDeliveryElapsedMs(0);
       setMapStationId("signal-crossing");
     }
   }, [levelId]);
+
+  useEffect(() => {
+    if (!deliveryStartedAt) return;
+    const timer = window.setInterval(() => setDeliveryElapsedMs(performance.now() - deliveryStartedAt), 100);
+    return () => window.clearInterval(timer);
+  }, [deliveryStartedAt]);
 
   useEffect(() => {
     if (!cameraActive || !videoRef.current || !streamRef.current) return;
@@ -313,11 +338,38 @@ export default function GameCanvas() {
     setCityAssetRevision((value) => value + 1);
   };
 
+  const dismissGestureTutorial = (startCalibration: boolean) => {
+    window.localStorage.setItem(gestureTutorialKey, "seen");
+    setShowGestureTutorial(false);
+    if (startCalibration) {
+      setCalibrationStep(0);
+      setStage("calibration");
+    }
+  };
+
   const advanceDelivery = (stationId: string) => {
     if (!isCodeCity || stationId !== deliveryTargetId) return;
+    if (deliveryStep === 0 && !deliveryStartedAt) {
+      const started = performance.now();
+      setDeliveryStartedAt(started);
+      setDeliveryElapsedMs(0);
+      setDeliveryStatus("Satchel collected. Carry it along the ribbon to Skyline Cache.");
+      setDeliveryStep(1);
+      return;
+    }
     if (deliveryStep >= cityDeliveryStops.length - 1) {
+      const completedAt = performance.now();
+      const durationMs = Math.max(0, Math.round(completedAt - (deliveryStartedAt ?? completedAt)));
+      const record = { name: playerName.trim().slice(0, 16) || "Explorer", durationMs, completedAt: new Date().toISOString() };
+      setDeliveryLeaderboard((current) => {
+        const next = [...current, record].sort((first, second) => first.durationMs - second.durationMs).slice(0, 5);
+        window.localStorage.setItem(deliveryLeaderboardKey, JSON.stringify(next));
+        return next;
+      });
+      setDeliveryElapsedMs(durationMs);
+      setDeliveryStartedAt(null);
       setDeliveryStep(cityDeliveryStops.length);
-      setDeliveryStatus("Delivery complete. The Wayfinder Kiosk has stamped your city-route pass.");
+      setDeliveryStatus(`Delivery complete in ${formatDeliveryTime(durationMs)}. The Wayfinder Kiosk has stamped your city-route pass.`);
       setDeliveryCompleteStamp(true);
       audioRef.current?.playQuestComplete();
       return;
@@ -655,7 +707,7 @@ export default function GameCanvas() {
       <button className="credits-toggle" onClick={() => setCreditsOpen(true)}>Credits camp</button>
 
       {worldMode === "3d" && isCodeCity && <aside className="city-mini-map" aria-label="Code City mini-map"><div className="mini-map-header"><span className="tiny-kicker">City field map</span><span>{deliveryStep >= cityDeliveryStops.length ? "Delivered" : `${deliveryStep + 1}/3`}</span></div><div className="mini-map-canvas"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M48 77 C42 72 38 68 38 68 S24 48 24 48 S55 44 55 44 S67 25 67 25 S75 47 75 47 S83 63 83 63" /></svg>{level.stations.map((station) => <button className={`mini-station ${station.id === deliveryTargetId ? "is-target" : ""} ${station.id === mapStation?.id ? "is-selected" : ""} ${discoveries.includes(station.id) ? "is-found" : ""}`} key={`map-${station.id}`} style={{ left: `${station.x}%`, top: `${station.y}%` }} onClick={() => { setMapStationId(station.id); moveTo(station); }} aria-label={`Inspect ${station.name}`} />)}<i className="mini-player" style={{ left: `${position.x}%`, top: `${position.y}%` }} /></div><div className="mini-map-footer"><Navigation size={12} style={{ transform: `rotate(${cityCompassAngle}deg)` }} /><span><b>{mapStation?.name ?? "Route complete"}</b>{mapStation && <em>{mapStationStatus}</em>}</span></div></aside>}
-      {worldMode === "3d" && isCodeCity && !activeStation && <aside className="city-delivery-quest" aria-label="Code City delivery quest"><p className="tiny-kicker">City courier</p><strong>{deliveryStep >= cityDeliveryStops.length ? "Route pass stamped" : `Satchel delivery · ${deliveryStep + 1}/3`}</strong><p>{deliveryStatus}</p>{deliveryTarget && deliveryStep < cityDeliveryStops.length && <button onClick={() => moveTo(deliveryTarget)}><Navigation size={13} /> Set route to {deliveryTarget.name}</button>}</aside>}
+      {worldMode === "3d" && isCodeCity && !activeStation && <aside className="city-delivery-quest" aria-label="Code City delivery quest"><p className="tiny-kicker">City courier</p><strong>{deliveryStep >= cityDeliveryStops.length ? "Route pass stamped" : `Satchel delivery · ${deliveryStep + 1}/3`}</strong><p>{deliveryStatus}</p><small className="delivery-timer"><span>Route time</span><b>{deliveryStartedAt || deliveryCompleteStamp ? deliveryTimerLabel : "Start at Signal Crossing"}</b></small>{deliveryTarget && deliveryStep < cityDeliveryStops.length && <button onClick={() => moveTo(deliveryTarget)}><Navigation size={13} /> Set route to {deliveryTarget.name}</button>}<div className="delivery-leaderboard"><div><span className="tiny-kicker">Local fastest routes</span><span>TOP 5</span></div>{deliveryLeaderboard.length ? <ol>{deliveryLeaderboard.slice(0, 3).map((entry, index) => <li key={`${entry.completedAt}-${index}`}><b>{index + 1}</b><span>{entry.name}</span><time>{formatDeliveryTime(entry.durationMs)}</time></li>)}</ol> : <p>Complete the route to place the first local time.</p>}</div></aside>}
       {deliveryCompleteStamp && <aside className="delivery-completion-stamp" aria-live="polite"><Award size={27} /><p>City courier pass</p><strong>DELIVERED</strong><span>Three route stamps earned</span><button onClick={() => setDeliveryCompleteStamp(false)}>Keep exploring</button></aside>}
       {cityLoadingVisible && <section className={`city-loading-screen is-${cityLoad.phase}`} aria-live="polite"><div className="city-loading-mark"><img src={compassMark} alt="" /></div><p className="tiny-kicker">Code City model bay</p><h2>{cityLoad.phase === "error" ? "The skyline needs another signal." : "Unfolding the city skyline."}</h2><p>{cityLoad.phase === "error" ? "The expedition is still playable with the illustrated fallback. Retry the city route when your connection is ready." : `Opening the city route${cityLoad.total ? ` · ${cityLoadPercent}%` : ""}.`}</p><div className="city-loading-bar" aria-label={`City asset progress ${cityLoadPercent}%`}><i style={{ width: `${cityLoad.phase === "error" ? 100 : cityLoadPercent}%` }} /></div>{cityLoad.phase === "error" ? <div className="city-loading-actions"><button onClick={retryCityAsset}>Retry city route</button><button onClick={() => setCityLoadHidden(true)}>Explore fallback</button></div> : <small>Keep this field note open while the skyline reaches the atlas.</small>}</section>}
 
@@ -712,6 +764,10 @@ export default function GameCanvas() {
 
       {stage === "world" && nearbyStation && !activeStation && (
         <button className="nearby-prompt" onClick={interact}><span className="prompt-flower"><Sparkles size={16} /></span><span><small>Nearby station</small><strong>{nearbyStation.name}</strong></span><kbd>E</kbd></button>
+      )}
+
+      {showGestureTutorial && stage === "menu" && (
+        <section className="gesture-visual-tutorial" role="dialog" aria-modal="true" aria-label="Hand gesture tutorial"><div className="gesture-tutorial-mark"><Hand size={24} /></div><p className="tiny-kicker">Scout Cam starter guide</p><h2>Three signs. One clear route.</h2><p className="gesture-tutorial-intro">Practice these gestures before you enter the world. Camera processing is optional and remains in your browser.</p><div className="gesture-demo-grid"><article><span>👍</span><strong>Thumbs-up</strong><small>Walk forward</small></article><article><span>✋</span><strong>Open palm</strong><small>Stop safely</small></article><article><span>🤏</span><strong>Pinch</strong><small>Open a note</small></article></div><div className="gesture-tutorial-actions"><button className="gesture-start" onClick={() => dismissGestureTutorial(true)}><Camera size={16} /> Practice with camera</button><button onClick={() => dismissGestureTutorial(false)}>I’ll use mouse and keys</button></div></section>
       )}
 
       {stage === "calibration" && (

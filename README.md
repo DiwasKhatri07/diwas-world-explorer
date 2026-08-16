@@ -126,6 +126,12 @@ The project ships with:
 
 > When connecting a custom domain, update the absolute URLs in `client/index.html`, `client/public/robots.txt`, and `client/public/sitemap.xml`.
 
+## 📦 GitHub Pages Automation
+
+Every push to `main` triggers [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml). The workflow installs dependencies, runs the TypeScript check, builds a GitHub Pages-specific static bundle, and deploys it through the official Pages actions. That build uses the repository base path and reads the approved portfolio assets from the live public asset origin, so the expedition visuals remain available outside the primary host.
+
+After GitHub grants Pages deployment permission to the workflow, the public mirror will be available at `https://diwaskhatri07.github.io/diwas-world-explorer/`.
+
 ## 🛠️ Useful Development Tasks
 
 | Goal | Where to work |

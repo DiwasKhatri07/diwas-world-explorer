@@ -8,6 +8,7 @@ import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
+import { assetUrl } from "@/game/assets";
 
 type Position = { x: number; y: number };
 type SceneState = {
@@ -42,15 +43,15 @@ const levelPalette: Record<ExpeditionLevelId, { sky: number; water: number; gras
   "rpg-frontier": { sky: 0x8cbdcf, water: 0x3b9bae, grass: 0x728e4f, sand: 0xe6cf92, glow: 0xff715b },
 };
 const uploadedFbxTextures: Record<string, string> = {
-  "Image_0.001.png": "/manus-storage/Image_0.001_0ae0d43a.png",
-  "Image_0.png": "/manus-storage/Image_0_c3063074.png",
-  "Image_1.png": "/manus-storage/Image_1_69574d38.png",
-  "Image_2.001.png": "/manus-storage/Image_2.001_a669f2f6.png",
-  "Image_3.001.png": "/manus-storage/Image_3.001_3ccafae7.png",
-  "Image_4.png": "/manus-storage/Image_4_364d481b.png",
-  "Image_5.001.png": "/manus-storage/Image_5.001_5acca76c.png",
-  "Image_6.001.png": "/manus-storage/Image_6.001_f3795377.png",
-  "Image_8.png": "/manus-storage/Image_8_8df65d01.png",
+  "Image_0.001.png": assetUrl("/manus-storage/Image_0.001_0ae0d43a.png"),
+  "Image_0.png": assetUrl("/manus-storage/Image_0_c3063074.png"),
+  "Image_1.png": assetUrl("/manus-storage/Image_1_69574d38.png"),
+  "Image_2.001.png": assetUrl("/manus-storage/Image_2.001_a669f2f6.png"),
+  "Image_3.001.png": assetUrl("/manus-storage/Image_3.001_3ccafae7.png"),
+  "Image_4.png": assetUrl("/manus-storage/Image_4_364d481b.png"),
+  "Image_5.001.png": assetUrl("/manus-storage/Image_5.001_5acca76c.png"),
+  "Image_6.001.png": assetUrl("/manus-storage/Image_6.001_f3795377.png"),
+  "Image_8.png": assetUrl("/manus-storage/Image_8_8df65d01.png"),
 };
 
 function roundedIsland(palette: { grass: number; sand: number }, atlasTexture: THREE.Texture) {

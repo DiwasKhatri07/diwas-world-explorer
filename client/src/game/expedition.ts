@@ -2,6 +2,7 @@
  * Interactive Expedition Portfolio content model: every level maps public project work
  * into an explorable station, while omitting personal contact and school details.
  */
+import { assetUrl } from "@/game/assets";
 export type ExpeditionLevelId = "south-shore" | "data-observatory" | "builder-harbor" | "night-lab" | "code-city" | "rpg-frontier";
 
 export type ExpeditionStation = {
@@ -29,7 +30,7 @@ export type ExpeditionLevel = {
   stations: ExpeditionStation[];
 };
 
-export const menuAtlas = "/manus-storage/diwas-menu-atlas-v3_84bf82d0.png";
+export const menuAtlas = assetUrl("/manus-storage/diwas-menu-atlas-v3_84bf82d0.png");
 
 export const expeditionLevels: ExpeditionLevel[] = [
   {
@@ -37,7 +38,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
     order: "01",
     name: "South Shore",
     subtitle: "Starting ground · core profile",
-    background: "/manus-storage/diwas-atlas-world-v2_d7835872.png",
+    background: assetUrl("/manus-storage/diwas-atlas-world-v2_d7835872.png"),
     spawn: { x: 50, y: 76 },
     theme: "sunlit",
     stations: [
@@ -92,7 +93,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
     order: "02",
     name: "Data Observatory",
     subtitle: "Project archive · live-data engineering",
-    background: "/manus-storage/diwas-data-observatory-v3_2dd592f9.png",
+    background: assetUrl("/manus-storage/diwas-data-observatory-v3_2dd592f9.png"),
     spawn: { x: 48, y: 74 },
     theme: "observatory",
     stations: [
@@ -107,7 +108,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
         y: 26,
         type: "project",
         link: "https://github.com/DiwasKhatri07/NEPSE-API-",
-        projectPreview: "/manus-storage/nepse-api-preview_7f3df97b.png",
+        projectPreview: assetUrl("/manus-storage/nepse-api-preview_7f3df97b.png"),
       },
       {
         id: "api-instruments",
@@ -138,7 +139,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
     order: "03",
     name: "Builder’s Harbor",
     subtitle: "Project archive · packages and gateways",
-    background: "/manus-storage/diwas-builder-harbor-v3_81c49b2b.png",
+    background: assetUrl("/manus-storage/diwas-builder-harbor-v3_81c49b2b.png"),
     spawn: { x: 50, y: 75 },
     theme: "harbor",
     stations: [
@@ -186,7 +187,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
         y: 18,
         type: "project",
         link: "https://github.com/DiwasKhatri07/Automate-YT-Channel",
-        projectPreview: "/manus-storage/automate-yt-preview_b9560692.png",
+        projectPreview: assetUrl("/manus-storage/automate-yt-preview_b9560692.png"),
       },
     ],
   },
@@ -195,7 +196,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
     order: "04",
     name: "Night Lab",
     subtitle: "Learning routes · AI and language systems",
-    background: "/manus-storage/diwas-night-lab-v3_425c63b4.png",
+    background: assetUrl("/manus-storage/diwas-night-lab-v3_425c63b4.png"),
     spawn: { x: 49, y: 74 },
     theme: "night",
     stations: [
@@ -243,7 +244,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
         y: 16,
         type: "project",
         link: "https://github.com/DiwasKhatri07/Nepali-IDE",
-        projectPreview: "/manus-storage/nepali-ide-preview_f248af04.png",
+        projectPreview: assetUrl("/manus-storage/nepali-ide-preview_f248af04.png"),
       },
     ],
   },
@@ -269,7 +270,7 @@ export const expeditionLevels: ExpeditionLevel[] = [
     order: "06",
     name: "RPG Frontier",
     subtitle: "Practice trail · encounters and action routes",
-    background: "/manus-storage/diwas-world-reference_de4e0dc1.png",
+    background: assetUrl("/manus-storage/diwas-world-reference_de4e0dc1.png"),
     spawn: { x: 50, y: 78 },
     theme: "frontier",
     stations: [
