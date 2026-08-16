@@ -87,3 +87,5 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - The first visible map frame must contain a recognisable island or landmark silhouette, a sand-path route cue, and at least one compact postcard-style overlay.
 - The wordmark always pairs the coral compass-flower emblem with editorial “Diwas World Explorer” typography in edge-mounted UI.
 - Compass Coral #FF715B is reserved for markers, active route prompts, field-note progress, and other discoveries; it is never used as the large background color.
+- Narrative copy is written as a clear, poetic field guide: route logs, field notes, kit inventories, and signal coordinates replace any placeholder or conventional portfolio language.
+- Discovery panels are treated as expedition artifacts with map-paper texture, archival labels, route dividers, and restrained coral verification rules.

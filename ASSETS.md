@@ -12,6 +12,10 @@
 | Diwas avatar | Character costume and silhouette reference | `/manus-storage/diwas-avatar_07dadb43.png` | Displayed in the profile card and visually echoed by the procedural 3D character. |
 | Compass flower mark | Brand mark and discovery indicator | `/manus-storage/compass-flower-mark_17aed5f6.png` | Used in HUD, title branding, discovery card, and favicon-compatible icon. |
 | Landmark totems | Prop language and component texture reference | `/manus-storage/landmark-totems_89545891.png` | Used as an illustrated lore/landmark accent in the discovery card. |
+| Premium atlas world | High-detail in-game island backdrop for the revised map | `/manus-storage/diwas-atlas-world-v2_d7835872.png` | Rendered as the visual atlas foundation behind the real-time player and waypoint system. |
+| Terrain detail | Seamless material reference for future close-up terrain expansion | `/manus-storage/diwas-terrain-detail-v2_35bb2c0e.png` | Reserved for terrain material work. |
+| Map stamps | Coral waypoint sprite-sheet | `/manus-storage/diwas-map-stamps-v2_142e7487.png` | Reserved for future waypoint and map-stamp variation. |
+| Island ambience | User-gesture-activated looping ambient soundtrack | `/manus-storage/diwas-island-ambient_44fb9747.mp3` | Played at low volume while the player explores. |
 
 ## Asset Notes
 
