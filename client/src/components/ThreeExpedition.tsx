@@ -16,6 +16,7 @@ type SceneState = {
   activeStationId: string | null;
   viewMode: "atlas" | "close";
   emote: number;
+  combatAction: "none" | "slash" | "block";
   environmentModelUrl: string | null;
   avatarModelUrl: string | null;
 };
@@ -95,6 +96,24 @@ function createPlayer() {
     arm.rotation.z = x > 0 ? -0.28 : 0.28;
     root.add(arm);
   });
+  const sword = new THREE.Group();
+  sword.name = "training-sword";
+  const blade = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.02, 0.09), new THREE.MeshStandardMaterial({ color: 0xd7e2dc, metalness: 0.55, roughness: 0.38 }));
+  blade.position.y = 0.48;
+  sword.add(blade);
+  const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.08, 0.1), new THREE.MeshStandardMaterial({ color: 0xc99035, roughness: 0.7 }));
+  hilt.position.y = -0.02;
+  sword.add(hilt);
+  sword.position.set(0.58, 1.08, 0.08);
+  sword.rotation.z = -0.48;
+  sword.visible = false;
+  root.add(sword);
+  const shield = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.09, 12), new THREE.MeshStandardMaterial({ color: 0x2c6380, metalness: 0.15, roughness: 0.58 }));
+  shield.name = "training-shield";
+  shield.position.set(-0.58, 1.28, 0.1);
+  shield.rotation.z = Math.PI / 2;
+  shield.visible = false;
+  root.add(shield);
   const pin = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.038, 8, 16), new THREE.MeshStandardMaterial({ color: 0xff715b, emissive: 0x44120e, emissiveIntensity: 0.35 }));
   pin.position.set(0.22, 1.52, 0.42);
   pin.rotation.x = Math.PI / 2;
@@ -272,10 +291,10 @@ function createNightCrystal() {
   return root;
 }
 
-export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl, className }: Props) {
+export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, className }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl });
-  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, environmentModelUrl, avatarModelUrl };
+  const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl });
+  stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -327,6 +346,8 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     let loadedAvatarUrl: string | null = null;
     let avatarImported = false;
     let handledEmote = stateRef.current.emote;
+    let previousCombatAction = stateRef.current.combatAction;
+    let combatUntil = 0;
     let danceUntil = 0;
     let lastTime = performance.now();
     let frame = 0;
@@ -480,13 +501,34 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       if (state.emote !== handledEmote) { handledEmote = state.emote; danceUntil = time + 2500; }
       const leftArm = player.getObjectByName("left-arm");
       const rightArm = player.getObjectByName("right-arm");
+      const sword = player.getObjectByName("training-sword");
+      const shield = player.getObjectByName("training-shield");
+      if (state.combatAction !== previousCombatAction) { previousCombatAction = state.combatAction; combatUntil = time + 720; }
+      const inCombatMotion = state.combatAction !== "none" && time < combatUntil;
+      if (inCombatMotion && state.combatAction === "slash") {
+        if (sword) sword.visible = true;
+        if (shield) shield.visible = false;
+        player.rotation.z = Math.sin(time / 52) * 0.16;
+        if (rightArm) rightArm.rotation.z = -1.55 + Math.sin(time / 85) * 0.9;
+        if (leftArm) leftArm.rotation.z = 0.72;
+      } else if (inCombatMotion && state.combatAction === "block") {
+        if (sword) sword.visible = false;
+        if (shield) shield.visible = true;
+        player.rotation.z = 0;
+        if (rightArm) rightArm.rotation.z = -0.9;
+        if (leftArm) leftArm.rotation.z = 0.9;
+      } else
       if (time < danceUntil) {
+        if (sword) sword.visible = false;
+        if (shield) shield.visible = false;
         const beat = Math.sin(time / 110);
         player.position.y = Math.abs(beat) * 0.22;
         player.rotation.z = beat * 0.1;
         if (leftArm) leftArm.rotation.z = 0.55 + beat * 0.85;
         if (rightArm) rightArm.rotation.z = -0.55 - beat * 0.85;
       } else {
+        if (sword) sword.visible = false;
+        if (shield) shield.visible = false;
         player.position.y = THREE.MathUtils.lerp(player.position.y, worldPosition.y, Math.min(1, dt * 8));
         player.rotation.z = THREE.MathUtils.lerp(player.rotation.z, 0, Math.min(1, dt * 8));
         if (leftArm) leftArm.rotation.z = THREE.MathUtils.lerp(leftArm.rotation.z, 0.28, Math.min(1, dt * 8));

@@ -74,6 +74,7 @@ export default function GameCanvas() {
   const [enemyHp, setEnemyHp] = useState(4);
   const [playerHp, setPlayerHp] = useState(5);
   const [combatStatus, setCombatStatus] = useState("");
+  const [combatAction, setCombatAction] = useState<"none" | "slash" | "block">("none");
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [cameraFlick, setCameraFlick] = useState(false);
@@ -132,7 +133,18 @@ export default function GameCanvas() {
     setEnemyHp(nextEnemy);
     setPlayerHp((current) => Math.max(1, current - (nextEnemy > 0 ? 1 : 0)));
     setCombatStatus(nextEnemy === 0 ? "Practice drone cleared — Beacon Keep route unlocked." : "Action Pulse landed. Keep moving and protect your stamina.");
+    setCombatAction("slash");
+    window.setTimeout(() => setCombatAction("none"), 600);
     setEmote((current) => current + 1);
+    void enableSound();
+  };
+
+  const shieldBlock = () => {
+    if (!isFrontier) { setVoiceStatus("Shield Block is unlocked in RPG Frontier. Travel to route 06 to practice."); return; }
+    setCombatAction("block");
+    setPlayerHp((current) => Math.min(5, current + 1));
+    setCombatStatus("Shield Block held. Stamina recovered by one point.");
+    window.setTimeout(() => setCombatAction("none"), 760);
     void enableSound();
   };
 
@@ -493,7 +505,7 @@ export default function GameCanvas() {
         style={{ transformOrigin: `${position.x}% ${position.y}%` }}
       />
       {worldMode === "2d" && <div className="code-notes" aria-hidden="true"><span>const craft = curiosity;</span><span>git push → horizon</span><span>await next_route()</span></div>}
-      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} environmentModelUrl={environmentModelUrl} avatarModelUrl={avatarModelUrl} />}
+      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={environmentModelUrl} avatarModelUrl={avatarModelUrl} />}
       <div
         className="world-map-layer"
         role="button"
@@ -563,6 +575,7 @@ export default function GameCanvas() {
         <button className={controlMode === "voice" ? "is-active" : ""} onClick={requestVoiceRoute}><Mic size={15} /><span>Speak</span></button>
         <button onClick={() => { setEmote((value) => value + 1); void enableSound(); }}><Zap size={15} /><span>Dance</span></button>
         <button className={isFrontier ? "is-active" : ""} onClick={actionPulse}><Swords size={15} /><span>Action</span></button>
+        <button className={combatAction === "block" ? "is-active" : ""} onClick={shieldBlock}><Shield size={15} /><span>Block</span></button>
         <button className="view-toggle" onClick={() => { setWorldMode((current) => current === "3d" ? "2d" : "3d"); setCameraFlick(true); window.setTimeout(() => setCameraFlick(false), 260); }}><Map size={15} /><span>{worldMode === "3d" ? "2D Atlas" : "3D World"}</span></button>
         <button className="view-toggle" onClick={() => { setViewMode((current) => current === "atlas" ? "close" : "atlas"); setCameraFlick(true); window.setTimeout(() => setCameraFlick(false), 260); }}>
           {viewMode === "atlas" ? <Orbit size={15} /> : <Eye size={15} />}<span>{viewMode === "atlas" ? "3rd View" : "POV"}</span>

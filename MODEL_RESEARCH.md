@@ -6,6 +6,8 @@
 
 The page identifies the author as **golukumar** and marks the model as downloadable under **Creative Commons Attribution 4.0**. The listing describes it as game-ready/low-poly and suitable as a browser-game environment. Before it can be placed into the published game, its downloaded asset package must be supplied as an actual local model file, preferably `.glb` or `.gltf` with textures, so the project can host it and include attribution.
 
+The public Sketchfab download API responded with an authentication requirement in this environment. The city can therefore be used once Diwas downloads the licensed archive from Sketchfab and uploads its `.glb` file here; the in-game **City Route GLB** slot is already prepared to load that model for the current browser session.
+
 ## Linked Sample Map
 
 **Source:** https://sketchfab.com/3d-models/smile-game-builder-sample-map-081fb5468bd14e56b5caa0031ce28cf1

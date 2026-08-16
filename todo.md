@@ -50,3 +50,11 @@
 - [x] Add a polished starter UI, developer credits, and a game guide overlay.
 - [x] Verify the model fallback, input modes, customization, and combat flows before delivery.
 - [ ] Replace the session-only fallback with Diwas’s final uploaded anime-coder avatar and licensed environment GLB files.
+
+# Default City and Encounter Revision
+
+- [ ] Retrieve the linked CC BY low-poly city model package and inspect it for a browser-loadable GLB/GLTF asset.
+- [ ] Use the approved low-poly city as the default Code City world, with the current route fallback retained for failed loads.
+- [x] Improve the default coder character’s visible action kit while awaiting a user-provided custom avatar model.
+- [x] Add a simple sword-slash attack reaction and shield-block defence reaction to the RPG Frontier practice encounter.
+- [x] Verify default city loading, fallback behavior, and both encounter actions before delivery.
