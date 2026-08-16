@@ -4,6 +4,7 @@
  */
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
 
@@ -31,6 +32,17 @@ const levelPalette: Record<ExpeditionLevelId, { sky: number; water: number; gras
   "night-lab": { sky: 0x264b78, water: 0x155f87, grass: 0x355f5d, sand: 0xbea36e, glow: 0xff715b },
   "code-city": { sky: 0xf0b879, water: 0x2d8da0, grass: 0x607c62, sand: 0xe6c783, glow: 0xff715b },
   "rpg-frontier": { sky: 0x8cbdcf, water: 0x3b9bae, grass: 0x728e4f, sand: 0xe6cf92, glow: 0xff715b },
+};
+const uploadedFbxTextures: Record<string, string> = {
+  "Image_0.001.png": "/manus-storage/Image_0.001_0ae0d43a.png",
+  "Image_0.png": "/manus-storage/Image_0_c3063074.png",
+  "Image_1.png": "/manus-storage/Image_1_69574d38.png",
+  "Image_2.001.png": "/manus-storage/Image_2.001_a669f2f6.png",
+  "Image_3.001.png": "/manus-storage/Image_3.001_3ccafae7.png",
+  "Image_4.png": "/manus-storage/Image_4_364d481b.png",
+  "Image_5.001.png": "/manus-storage/Image_5.001_5acca76c.png",
+  "Image_6.001.png": "/manus-storage/Image_6.001_f3795377.png",
+  "Image_8.png": "/manus-storage/Image_8_8df65d01.png",
 };
 
 function roundedIsland(palette: { grass: number; sand: number }, atlasTexture: THREE.Texture) {
@@ -326,8 +338,22 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     scene.add(player);
     const importedEnvironment = new THREE.Group();
     const importedAvatar = new THREE.Group();
+    const importedCombatProps = new THREE.Group();
     const gltfLoader = new GLTFLoader();
-    scene.add(importedEnvironment, importedAvatar);
+    const fbxLoader = new FBXLoader();
+    fbxLoader.manager.setURLModifier((url) => uploadedFbxTextures[url.split(/[\\/]/).pop() ?? ""] ?? url);
+    const importedSword = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.08, 0.08), new THREE.MeshStandardMaterial({ color: 0xd7e2dc, metalness: 0.55, roughness: 0.38 }));
+    importedSword.name = "imported-sword";
+    importedSword.position.set(0.52, 1.06, 0.04);
+    importedSword.rotation.z = -0.62;
+    importedCombatProps.add(importedSword);
+    const importedShield = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.1, 12), new THREE.MeshStandardMaterial({ color: 0x2c6380, metalness: 0.15, roughness: 0.58 }));
+    importedShield.name = "imported-shield";
+    importedShield.position.set(-0.52, 1.2, 0.03);
+    importedShield.rotation.z = Math.PI / 2;
+    importedCombatProps.add(importedShield);
+    importedCombatProps.visible = false;
+    scene.add(importedEnvironment, importedAvatar, importedCombatProps);
     const targetRing = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.07, 8, 28), new THREE.MeshStandardMaterial({ color: 0xff715b, emissive: 0x5b160e, emissiveIntensity: 1.2 }));
     targetRing.rotation.x = Math.PI / 2;
     targetRing.visible = false;
@@ -341,10 +367,12 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
     const textureLoader = new THREE.TextureLoader();
     const atlasTexture = textureLoader.load(menuAtlas);
     atlasTexture.colorSpace = THREE.SRGBColorSpace;
+    const explorerPalette = [0x173a56, 0xc99035, 0xf5ddb1, 0x9b603d, 0x3b718d, 0xe96c56];
     let loadedLevel: ExpeditionLevelId | null = null;
     let loadedEnvironmentUrl: string | null = null;
     let loadedAvatarUrl: string | null = null;
     let avatarImported = false;
+    let avatarMixer: THREE.AnimationMixer | null = null;
     let handledEmote = stateRef.current.emote;
     let previousCombatAction = stateRef.current.combatAction;
     let combatUntil = 0;
@@ -365,20 +393,48 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       }
     };
 
-    const loadSessionModel = (url: string, target: THREE.Group, targetHeight: number, isAvatar: boolean) => {
+    const placeSessionModel = (model: THREE.Object3D, target: THREE.Group, targetHeight: number, isAvatar: boolean, animations?: THREE.AnimationClip[]) => {
       clearGroup(target);
-      gltfLoader.load(url, (gltf) => {
-        const model = gltf.scene;
-        const bounds = new THREE.Box3().setFromObject(model);
-        const size = new THREE.Vector3();
-        bounds.getSize(size);
-        model.scale.setScalar(targetHeight / Math.max(size.y, 0.001));
-        const scaled = new THREE.Box3().setFromObject(model);
-        model.position.y -= scaled.min.y;
-        model.traverse((node) => { const mesh = node as THREE.Mesh; if (mesh.isMesh) { mesh.castShadow = true; mesh.receiveShadow = true; } });
-        target.add(model);
-        if (isAvatar) avatarImported = true;
-      }, undefined, () => { if (isAvatar) avatarImported = false; });
+      const bounds = new THREE.Box3().setFromObject(model);
+      const size = new THREE.Vector3();
+      bounds.getSize(size);
+      model.scale.setScalar(targetHeight / Math.max(size.y, 0.001));
+      const scaled = new THREE.Box3().setFromObject(model);
+      const center = scaled.getCenter(new THREE.Vector3());
+      if (!isAvatar) {
+        model.position.x -= center.x;
+        model.position.z -= center.z;
+      }
+      model.position.y -= scaled.min.y;
+      model.traverse((node) => {
+        const mesh = node as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        if (isAvatar) {
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((material, materialIndex) => {
+            const standard = material as THREE.MeshStandardMaterial;
+            standard.map = null;
+            standard.color.setHex(explorerPalette[materialIndex % explorerPalette.length]);
+            standard.roughness = 0.78;
+            standard.metalness = 0;
+            standard.needsUpdate = true;
+          });
+        }
+      });
+      target.add(model);
+      if (isAvatar) {
+        avatarImported = true;
+        if (animations?.length) { avatarMixer = new THREE.AnimationMixer(model); avatarMixer.clipAction(animations[0]).play(); }
+      }
+    };
+    const loadSessionModel = (url: string, target: THREE.Group, targetHeight: number, isAvatar: boolean) => {
+      const failed = () => { if (isAvatar) avatarImported = false; };
+      if (url.toLowerCase().endsWith(".fbx")) {
+        fbxLoader.setResourcePath(url.slice(0, url.lastIndexOf("/") + 1));
+        fbxLoader.load(url, (model) => placeSessionModel(model, target, targetHeight, isAvatar, model.animations), undefined, failed);
+      } else gltfLoader.load(url, (gltf) => placeSessionModel(gltf.scene, target, targetHeight, isAvatar, gltf.animations), undefined, failed);
     };
 
     const rebuildLevel = (next: SceneState) => {
@@ -493,10 +549,15 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       }
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
+      avatarMixer?.update(dt);
       const worldPosition = toWorld(state.position);
       player.position.lerp(worldPosition, Math.min(1, dt * 12));
       importedAvatar.position.copy(player.position);
+      const isTravelling = Boolean(state.target);
+      importedAvatar.position.y += isTravelling ? Math.abs(Math.sin(time / 105)) * 0.12 : Math.sin(time / 900) * 0.025;
       importedAvatar.rotation.y = player.rotation.y;
+      importedCombatProps.position.copy(player.position);
+      importedCombatProps.rotation.y = player.rotation.y;
       player.visible = !avatarImported;
       if (state.emote !== handledEmote) { handledEmote = state.emote; danceUntil = time + 2500; }
       const leftArm = player.getObjectByName("left-arm");
@@ -505,6 +566,9 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       const shield = player.getObjectByName("training-shield");
       if (state.combatAction !== previousCombatAction) { previousCombatAction = state.combatAction; combatUntil = time + 720; }
       const inCombatMotion = state.combatAction !== "none" && time < combatUntil;
+      importedCombatProps.visible = avatarImported && inCombatMotion;
+      importedSword.visible = state.combatAction === "slash";
+      importedShield.visible = state.combatAction === "block";
       if (inCombatMotion && state.combatAction === "slash") {
         if (sword) sword.visible = true;
         if (shield) shield.visible = false;

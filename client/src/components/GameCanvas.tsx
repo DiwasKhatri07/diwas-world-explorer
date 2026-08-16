@@ -37,6 +37,8 @@ const explorerAvatar = "/manus-storage/diwas-explorer-character-v3_3345cae2.png"
 const fallbackAvatar = "/manus-storage/diwas-avatar_07dadb43.png";
 const totemSheet = "/manus-storage/landmark-totems_89545891.png";
 const ambienceUrl = "/manus-storage/diwas-island-ambient_44fb9747.mp3";
+const defaultMaleCharacterUrl = "/manus-storage/Male05_f2f8ab35.fbx";
+const defaultCityEnvironmentUrl = "/manus-storage/Untitled_a86f5402.glb";
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const distance = (first: Position, second: Position) => Math.hypot(first.x - second.x, first.y - second.y);
 const demoMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("demo");
@@ -68,7 +70,7 @@ export default function GameCanvas() {
   const [emote, setEmote] = useState(0);
   const [playerName, setPlayerName] = useState("Diwas");
   const [environmentModelUrl, setEnvironmentModelUrl] = useState<string | null>(null);
-  const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(null);
+  const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(defaultMaleCharacterUrl);
   const [environmentModelName, setEnvironmentModelName] = useState("");
   const [avatarModelName, setAvatarModelName] = useState("");
   const [enemyHp, setEnemyHp] = useState(4);
@@ -116,8 +118,8 @@ export default function GameCanvas() {
   const prepareModel = (event: React.ChangeEvent<HTMLInputElement>, kind: "environment" | "avatar") => {
     const file = event.target.files?.[0];
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith(".glb")) {
-      setVoiceStatus("For a reliable browser preview, please select a self-contained .glb file. GLTF texture bundles can be uploaded after packaging.");
+    if (!/\.(glb|fbx)$/i.test(file.name)) {
+      setVoiceStatus("For a reliable browser preview, please select a self-contained .glb file or an .fbx file with its texture bundle.");
       return;
     }
     const url = URL.createObjectURL(file);
@@ -384,7 +386,8 @@ export default function GameCanvas() {
             const openPalm = fingerTipsAboveWrist >= 3;
             const thumbsUp = thumb.y < wrist.y - 0.13 && [index, middle, ring, pinky].every((point) => point.y > wrist.y - 0.035);
             const now = performance.now();
-            if (openPalm) {
+            if (openPalm && now - handLastActionRef.current > 520) {
+              handLastActionRef.current = now;
               setTarget(null);
               audioRef.current?.playGesture();
               setHandStatus("Open palm detected: route stopped.");
@@ -497,7 +500,7 @@ export default function GameCanvas() {
   };
 
   return (
-    <main className={`world-shell is-${worldMode} level-${level.theme} view-${viewMode} ${cameraFlick ? "camera-flick" : ""}`}>
+    <main className={`world-shell is-${worldMode} level-${level.theme} level-id-${levelId} view-${viewMode} ${cameraFlick ? "camera-flick" : ""}`}>
       <img
         className="world-fallback"
         src={level.background}
@@ -505,7 +508,7 @@ export default function GameCanvas() {
         style={{ transformOrigin: `${position.x}% ${position.y}%` }}
       />
       {worldMode === "2d" && <div className="code-notes" aria-hidden="true"><span>const craft = curiosity;</span><span>git push → horizon</span><span>await next_route()</span></div>}
-      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={environmentModelUrl} avatarModelUrl={avatarModelUrl} />}
+      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={environmentModelUrl || (levelId === "code-city" ? defaultCityEnvironmentUrl : null)} avatarModelUrl={avatarModelUrl} />}
       <div
         className="world-map-layer"
         role="button"
@@ -632,7 +635,7 @@ export default function GameCanvas() {
             <h2>Begin at the shore.<br /><em>Build toward the horizon.</em></h2>
             <p>An interactive personal world: project archives, learning routes, and field notes gathered into one expanding atlas.</p>
             <div className="menu-actions"><button className="menu-start" onClick={() => { setStage("tutorial"); setTutorialStep(0); }}><Play size={16} fill="currentColor" /> Start expedition</button><button className="menu-skip" onClick={() => setStage("world")}>Enter without briefing <ChevronRight size={15} /></button></div>
-            <div className="starter-kit"><label><UserRound size={14} /> Explorer call sign<input value={playerName} maxLength={16} onChange={(event) => setPlayerName(event.target.value || "Diwas")} /></label><label><Upload size={14} /> City route GLB <input type="file" accept=".glb,model/gltf-binary" onChange={(event) => prepareModel(event, "environment")} /></label><label><Upload size={14} /> Avatar route GLB <input type="file" accept=".glb,model/gltf-binary" onChange={(event) => prepareModel(event, "avatar")} /></label><small>{environmentModelName || avatarModelName ? `Session route cargo: ${[environmentModelName, avatarModelName].filter(Boolean).join(" · ")}` : "Model bay ready for self-contained GLB route cargo."}</small></div>
+            <div className="starter-kit"><label><UserRound size={14} /> Explorer call sign<input value={playerName} maxLength={16} onChange={(event) => setPlayerName(event.target.value || "Diwas")} /></label><label><Upload size={14} /> City route GLB <input type="file" accept=".glb,model/gltf-binary" onChange={(event) => prepareModel(event, "environment")} /></label><label><Upload size={14} /> Avatar GLB / FBX <input type="file" accept=".glb,.fbx,model/gltf-binary" onChange={(event) => prepareModel(event, "avatar")} /></label><small>{environmentModelName || avatarModelName ? `Session route cargo: ${[environmentModelName, avatarModelName].filter(Boolean).join(" · ")}` : "Uploaded male character is now the default 3D player."}</small></div>
             <div className="menu-meta"><span><Crosshair size={13} /> {expeditionLevels.length} routes</span><span><Zap size={13} /> {allStations.length} stations</span><span><Orbit size={13} /> 2 views</span></div>
           </div>
         </section>

@@ -51,6 +51,16 @@
 - [x] Verify the model fallback, input modes, customization, and combat flows before delivery.
 - [ ] Replace the session-only fallback with Diwas’s final uploaded anime-coder avatar and licensed environment GLB files.
 
+# Uploaded Model Integration
+
+- [x] Inspect `low-poly-city.zip` and `male-preview.zip` for GLB/GLTF models, textures, and animation clips; the city upload is a 15-byte placeholder rather than an archive.
+- [ ] Upload the extracted browser-ready model assets to managed project storage.
+- [ ] Use the uploaded city as the default Code City environment with procedural fallback behavior.
+- [ ] Use the uploaded male character as the default player with available walking/idle animation clips.
+- [ ] Refine the local hand route around the animated player with stable gesture feedback and clear recovery controls.
+- [ ] Verify environment rendering, character animation, and hand controls before delivery.
+- [ ] Receive a valid `low-poly-city.zip`, `.glb`, or `.gltf` environment file from Diwas to complete default city integration.
+
 # Default City and Encounter Revision
 
 - [ ] Retrieve the linked CC BY low-poly city model package and inspect it for a browser-loadable GLB/GLTF asset.

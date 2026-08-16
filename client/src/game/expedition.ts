@@ -251,14 +251,14 @@ export const expeditionLevels: ExpeditionLevel[] = [
     id: "code-city",
     order: "05",
     name: "Code City",
-    subtitle: "Model-ready district · systems and shipping",
+    subtitle: "City route · systems and shipping",
     background: menuAtlas,
     spawn: { x: 48, y: 77 },
     theme: "city",
     stations: [
-      { id: "city-gate", name: "City Gate", kicker: "District 05 · Model-ready route", title: "A future city district for larger build systems.", description: "Code City is prepared for a supplied GLB or GLTF environment model. Until then, the route stays playable with an illustrated fallback and procedural landmarks.", detail: "Import bay: low-poly city environment · runtime model loader · creator attribution slot.", x: 24, y: 48, type: "focus" },
+      { id: "city-gate", name: "City Gate", kicker: "District 05 · City route", title: "A low-poly skyline for larger build systems.", description: "Code City now uses Diwas’s uploaded city environment as its default three-dimensional route, with the illustrated expedition fallback retained for lighter devices.", detail: "City kit: low-poly environment · runtime world loader · creator attribution slot.", x: 24, y: 48, type: "focus" },
       { id: "commit-plaza", name: "Commit Plaza", kicker: "District 05 · Build log", title: "Every shipped idea becomes part of the skyline.", description: "This plaza connects the live public GitHub log with the game world: build, revise, and keep the next commit moving forward.", detail: "Plaza kit: version control · project logs · visible iteration · developer credits.", x: 67, y: 25, type: "focus" },
-      { id: "asset-bay", name: "Asset Bay", kicker: "District 05 · Import station", title: "Bring a model, set the scene, keep the attribution.", description: "The import station is reserved for user-provided GLB or GLTF environments and character models, so the world can evolve without hiding asset provenance.", detail: "Accepted route cargo: .glb · .gltf with textures · authored model credits.", x: 83, y: 63, type: "skills" },
+      { id: "asset-bay", name: "Asset Bay", kicker: "District 05 · Import station", title: "A route that grows with the builder’s own world assets.", description: "The city and default character are loaded from Diwas’s supplied model archive. Asset Bay keeps the route ready for future GLB, GLTF, and animated character upgrades without hiding provenance.", detail: "Route cargo: city GLB · character FBX · texture bundle · creator credits.", x: 83, y: 63, type: "skills" },
     ],
   },
   {

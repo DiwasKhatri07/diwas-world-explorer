@@ -92,3 +92,5 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - The world image treatment favors a sunlit, sea-glass travel atlas: softened shadows, turquoise water, parchment sand, and visible route-like composition must outweigh cinematic darkness.
 - All overlays use physical expedition-artifact cues—paper grain, imperfect ink keylines, archival labels, route dividers, and stamp-like numerals—rather than generic game-HUD boxes.
 - The playable world must echo the landing poster through an illustrated-atlas terrain layer, turquoise water bands, curved parchment routes, clustered landmark props, and compact route flags; procedural geometry is a deliberate miniature-world construction, never a bare sandbox.
+- Imported player models are finished with a warm, readable explorer treatment so they belong to the postcard atlas rather than presenting as unrelated metallic game assets.
+- The Code City district prioritizes the uploaded city model as the landmark-led focal point while retaining a softened atlas treatment and the compact paper-based expedition HUD.
