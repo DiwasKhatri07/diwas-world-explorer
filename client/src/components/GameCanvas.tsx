@@ -9,7 +9,7 @@ import {
   Orbit, Play, RefreshCw, Shield, Sparkles, Swords, Upload, UserRound, Volume2, VolumeX, X, Zap,
 } from "lucide-react";
 import { AudioManager } from "@/game/AudioManager";
-import ThreeExpedition from "@/components/ThreeExpedition";
+import ThreeExpedition, { type EnvironmentLoadState } from "@/components/ThreeExpedition";
 import { useGithubActivity } from "@/hooks/useGithubActivity";
 import { expeditionLevels, levelById, menuAtlas, type ExpeditionLevelId, type ExpeditionStation } from "@/game/expedition";
 
@@ -70,6 +70,9 @@ export default function GameCanvas() {
   const [emote, setEmote] = useState(0);
   const [playerName, setPlayerName] = useState("Diwas");
   const [environmentModelUrl, setEnvironmentModelUrl] = useState<string | null>(null);
+  const [cityAssetRevision, setCityAssetRevision] = useState(0);
+  const [cityLoad, setCityLoad] = useState<EnvironmentLoadState>({ phase: "loading", loaded: 0, total: 0 });
+  const [cityLoadHidden, setCityLoadHidden] = useState(false);
   const [avatarModelUrl, setAvatarModelUrl] = useState<string | null>(defaultMaleCharacterUrl);
   const [environmentModelName, setEnvironmentModelName] = useState("");
   const [avatarModelName, setAvatarModelName] = useState("");
@@ -105,6 +108,8 @@ export default function GameCanvas() {
   const handLandmarkerRef = useRef<{ close?: () => void } | null>(null);
   const faceLandmarkerRef = useRef<{ close?: () => void } | null>(null);
   const handLastActionRef = useRef(0);
+  const handGestureRef = useRef({ candidate: "none", candidateSince: 0, active: "", lastForward: 0 });
+  const handStatusRef = useRef(handStatus);
   const interactRef = useRef<() => void>(() => undefined);
 
   const level = levelById[levelId];
@@ -114,6 +119,16 @@ export default function GameCanvas() {
   const levelIndex = expeditionLevels.findIndex((world) => world.id === levelId);
   const isMoving = Boolean(target);
   const isFrontier = levelId === "rpg-frontier";
+  const cityNavigationStation = levelId === "code-city" ? level.stations.reduce((closest, station) => distance(target ?? position, station) < distance(target ?? position, closest) ? station : closest, level.stations[0]) : null;
+  const cityCompassAngle = cityNavigationStation ? Math.atan2(cityNavigationStation.x - position.x, position.y - cityNavigationStation.y) * (180 / Math.PI) : 0;
+  const cityLoadPercent = cityLoad.total > 0 ? Math.min(100, Math.round((cityLoad.loaded / cityLoad.total) * 100)) : cityLoad.loaded > 0 ? 8 : 3;
+  const cityLoadingVisible = worldMode === "3d" && levelId === "code-city" && !environmentModelUrl && cityLoad.phase !== "ready" && !cityLoadHidden;
+  const activeEnvironmentModelUrl = environmentModelUrl || (levelId === "code-city" ? `${defaultCityEnvironmentUrl}?city-route=${cityAssetRevision}` : null);
+  const writeHandStatus = (message: string) => {
+    if (handStatusRef.current === message) return;
+    handStatusRef.current = message;
+    setHandStatus(message);
+  };
 
   const prepareModel = (event: React.ChangeEvent<HTMLInputElement>, kind: "environment" | "avatar") => {
     const file = event.target.files?.[0];
@@ -185,6 +200,13 @@ export default function GameCanvas() {
   useEffect(() => { controlModeRef.current = controlMode; }, [controlMode]);
 
   useEffect(() => {
+    if (levelId === "code-city" && worldMode === "3d" && !environmentModelUrl) {
+      setCityLoad({ phase: "loading", loaded: 0, total: 0 });
+      setCityLoadHidden(false);
+    }
+  }, [levelId, worldMode, environmentModelUrl, cityAssetRevision]);
+
+  useEffect(() => {
     if (!cameraActive || !videoRef.current || !streamRef.current) return;
     videoRef.current.srcObject = streamRef.current;
   }, [cameraActive]);
@@ -247,6 +269,18 @@ export default function GameCanvas() {
     setTarget({ x: clamp(next.x, 8, 92), y: clamp(next.y, 10, 89) });
     if (stageRef.current === "tutorial" && tutorialStep === 1) setTutorialStep(2);
     void enableSound();
+  };
+
+  const calibrateHandRoute = () => {
+    handGestureRef.current = { candidate: "none", candidateSince: performance.now(), active: "", lastForward: 0 };
+    handLastActionRef.current = 0;
+    writeHandStatus("Hand Route calibrated. Keep one hand in frame, then hold a thumbs-up, open palm, or pinch for a moment.");
+  };
+
+  const retryCityAsset = () => {
+    setCityLoad({ phase: "loading", loaded: 0, total: 0 });
+    setCityLoadHidden(false);
+    setCityAssetRevision((value) => value + 1);
   };
 
   const interact = () => {
@@ -325,7 +359,7 @@ export default function GameCanvas() {
       setEyeTracking(enableEye);
       if (enableHand) {
         setControlMode("hand");
-        setHandStatus("Starting Hand Route. Thumbs-up moves forward; open palm stops; pinch opens a station.");
+        calibrateHandRoute();
         if (stageRef.current === "tutorial") setTutorialStep(3);
       }
       if (enableEye) setEyeStatus("Starting Eye Route. Look left or right to set a short route; look centered to hold.");
@@ -372,7 +406,8 @@ export default function GameCanvas() {
           const points = results.landmarks[0];
           if (!points) {
             drawHandOverlay();
-            setHandStatus("Show one hand to Scout Cam. Thumbs-up moves; open palm stops; pinch opens.");
+            handGestureRef.current.active = "";
+            writeHandStatus("Show one hand to Scout Cam. Thumbs-up moves; open palm stops; pinch opens.");
           } else {
             drawHandOverlay(points);
             const wrist = points[0];
@@ -381,29 +416,45 @@ export default function GameCanvas() {
             const middle = points[12];
             const ring = points[16];
             const pinky = points[20];
-            const pinch = Math.hypot(index.x - thumb.x, index.y - thumb.y) < 0.065;
-            const fingerTipsAboveWrist = [index, middle, ring, pinky].filter((point) => point.y < wrist.y - 0.08).length;
-            const openPalm = fingerTipsAboveWrist >= 3;
-            const thumbsUp = thumb.y < wrist.y - 0.13 && [index, middle, ring, pinky].every((point) => point.y > wrist.y - 0.035);
+            const pinch = Math.hypot(index.x - thumb.x, index.y - thumb.y) < 0.075;
+            const extendedFingers = [[8, 6], [12, 10], [16, 14], [20, 18]].filter(([tip, joint]) => points[tip].y < points[joint].y - 0.025).length;
+            const foldedFingers = [index, middle, ring, pinky].filter((point) => point.y > wrist.y - 0.015).length;
+            const openPalm = extendedFingers >= 3 && Math.hypot(index.x - thumb.x, index.y - thumb.y) > 0.11;
+            const thumbsUp = thumb.y < Math.min(index.y, middle.y, ring.y, pinky.y) - 0.055 && foldedFingers >= 3;
             const now = performance.now();
-            if (openPalm && now - handLastActionRef.current > 520) {
-              handLastActionRef.current = now;
-              setTarget(null);
-              audioRef.current?.playGesture();
-              setHandStatus("Open palm detected: route stopped.");
-            } else if (pinch && now - handLastActionRef.current > 950) {
-              handLastActionRef.current = now;
-              audioRef.current?.playGesture();
-              setHandStatus("Pinch detected: opening the nearby field note.");
-              interactRef.current();
-            } else if (thumbsUp && now - handLastActionRef.current > 520) {
-              handLastActionRef.current = now;
-              const origin = targetRef.current ?? positionRef.current;
-              setTarget({ x: origin.x, y: clamp(origin.y - 14, 10, 89) });
-              void enableSound();
-              audioRef.current?.playGesture();
-              setHandStatus("Thumbs-up detected: moving forward.");
-            } else setHandStatus("Gesture guide: thumbs-up = forward · open palm = stop · pinch = open note.");
+            const gesture = pinch ? "pinch" : openPalm ? "stop" : thumbsUp ? "forward" : "none";
+            const tracker = handGestureRef.current;
+            if (gesture !== tracker.candidate) {
+              tracker.candidate = gesture;
+              tracker.candidateSince = now;
+            }
+            if (gesture === "none") {
+              tracker.active = "";
+              writeHandStatus("Gesture guide: thumbs-up = forward · open palm = stop · pinch = open note.");
+            } else if (now - tracker.candidateSince > 180) {
+              if (gesture === "stop" && tracker.active !== "stop") {
+                tracker.active = "stop";
+                targetRef.current = null;
+                setTarget(null);
+                audioRef.current?.playGesture();
+                writeHandStatus("Open palm confirmed: route stopped.");
+              } else if (gesture === "pinch" && tracker.active !== "pinch") {
+                tracker.active = "pinch";
+                audioRef.current?.playGesture();
+                writeHandStatus("Pinch confirmed: opening the nearby field note.");
+                interactRef.current();
+              } else if (gesture === "forward" && (tracker.active !== "forward" || now - tracker.lastForward > 1100)) {
+                tracker.active = "forward";
+                tracker.lastForward = now;
+                const origin = targetRef.current ?? positionRef.current;
+                const nextTarget = { x: origin.x, y: clamp(origin.y - 12, 10, 89) };
+                targetRef.current = nextTarget;
+                setTarget(nextTarget);
+                void enableSound();
+                audioRef.current?.playGesture();
+                writeHandStatus("Thumbs-up confirmed: moving forward. Hold to keep walking; open your palm to stop.");
+              }
+            }
             }
           handFrameRef.current = requestAnimationFrame(detect);
         };
@@ -508,7 +559,7 @@ export default function GameCanvas() {
         style={{ transformOrigin: `${position.x}% ${position.y}%` }}
       />
       {worldMode === "2d" && <div className="code-notes" aria-hidden="true"><span>const craft = curiosity;</span><span>git push → horizon</span><span>await next_route()</span></div>}
-      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={environmentModelUrl || (levelId === "code-city" ? defaultCityEnvironmentUrl : null)} avatarModelUrl={avatarModelUrl} />}
+      {worldMode === "3d" && <ThreeExpedition className="three-expedition" levelId={levelId} position={position} target={target} stations={level.stations} activeStationId={active} viewMode={viewMode} emote={emote} combatAction={combatAction} environmentModelUrl={activeEnvironmentModelUrl} avatarModelUrl={avatarModelUrl} onEnvironmentLoad={(state) => { if (levelRef.current === "code-city" && !environmentModelUrl) setCityLoad(state); }} />}
       <div
         className="world-map-layer"
         role="button"
@@ -543,6 +594,9 @@ export default function GameCanvas() {
       </header>
       <button className="credits-toggle" onClick={() => setCreditsOpen(true)}>Credits camp</button>
 
+      {worldMode === "3d" && levelId === "code-city" && cityNavigationStation && <aside className="city-compass" aria-label="Code City route compass"><div className="city-compass-dial"><i style={{ transform: `rotate(${cityCompassAngle}deg)` }}><Navigation size={18} fill="currentColor" /></i><span>N</span></div><div><small>Route bearing</small><strong>{cityNavigationStation.name}</strong><p>{Math.max(1, Math.round(distance(position, cityNavigationStation)))} paces away</p></div></aside>}
+      {cityLoadingVisible && <section className={`city-loading-screen is-${cityLoad.phase}`} aria-live="polite"><div className="city-loading-mark"><img src={compassMark} alt="" /></div><p className="tiny-kicker">Code City model bay</p><h2>{cityLoad.phase === "error" ? "The skyline needs another signal." : "Unfolding the city skyline."}</h2><p>{cityLoad.phase === "error" ? "The expedition is still playable with the illustrated fallback. Retry the city route when your connection is ready." : `Opening the city route${cityLoad.total ? ` · ${cityLoadPercent}%` : ""}.`}</p><div className="city-loading-bar" aria-label={`City asset progress ${cityLoadPercent}%`}><i style={{ width: `${cityLoad.phase === "error" ? 100 : cityLoadPercent}%` }} /></div>{cityLoad.phase === "error" ? <div className="city-loading-actions"><button onClick={retryCityAsset}>Retry city route</button><button onClick={() => setCityLoadHidden(true)}>Explore fallback</button></div> : <small>Keep this field note open while the skyline reaches the atlas.</small>}</section>}
+
       <aside className="field-notes" aria-label="Exploration progress">
         <div className="field-notes-topline"><span className="tiny-kicker">Expedition log</span><Compass size={17} strokeWidth={1.8} /></div>
         <strong>{discoveries.length}<span>/{allStations.length}</span></strong>
@@ -573,7 +627,7 @@ export default function GameCanvas() {
       <section className="command-dock" aria-label="Exploration controls">
         <button className={controlMode === "mouse" ? "is-active" : ""} onClick={() => setControlMode("mouse")}><MousePointer2 size={15} /><span>Mouse</span></button>
         <button className={controlMode === "keyboard" ? "is-active" : ""} onClick={() => setControlMode("keyboard")}><Keyboard size={15} /><span>Keys</span></button>
-        <button className={controlMode === "hand" ? "is-active" : ""} onClick={() => cameraActive ? (setControlMode("hand"), setHandTracking(true)) : setPermissionSheet("hand")}><Hand size={15} /><span>Hand</span></button>
+        <button className={controlMode === "hand" ? "is-active" : ""} onClick={() => { if (cameraActive) { setControlMode("hand"); setEyeTracking(false); setHandTracking(true); calibrateHandRoute(); } else setPermissionSheet("hand"); }}><Hand size={15} /><span>Hand</span></button>
         <button className={eyeTracking ? "is-active" : ""} onClick={() => cameraActive ? (setEyeTracking(true), setHandTracking(false)) : setPermissionSheet("eye")}><Eye size={15} /><span>Eyes</span></button>
         <button className={controlMode === "voice" ? "is-active" : ""} onClick={requestVoiceRoute}><Mic size={15} /><span>Speak</span></button>
         <button onClick={() => { setEmote((value) => value + 1); void enableSound(); }}><Zap size={15} /><span>Dance</span></button>
@@ -588,7 +642,7 @@ export default function GameCanvas() {
 
       {voiceStatus && <div className="voice-status"><Mic size={14} />{voiceStatus}<button onClick={() => setVoiceStatus("")} aria-label="Dismiss voice status"><X size={13} /></button></div>}
       {cameraActive && <div className={`camera-preview ${handTracking ? "is-tracking" : ""}`}><video ref={videoRef} autoPlay playsInline muted /><canvas ref={handCanvasRef} className="hand-overlay" aria-hidden="true" /><span>{handTracking ? <Hand size={12} /> : <Camera size={12} />}{handTracking ? " Hand Route · LIVE" : " Scout Cam"}</span><button onClick={stopCamera} aria-label="Stop Scout Cam"><X size={13} /></button></div>}
-      {handTracking && <div className="hand-status"><Hand size={14} />{handStatus}</div>}
+      {handTracking && <div className="hand-status"><Hand size={14} />{handStatus}<button onClick={calibrateHandRoute}>Calibrate</button></div>}
       {eyeTracking && <div className="eye-status"><Eye size={14} />{eyeStatus}</div>}
       {isFrontier && <aside className="encounter-kit" aria-label="Practice encounter"><div><span className="tiny-kicker">Practice drone</span><strong>{enemyHp > 0 ? `Signal strength ${enemyHp}/4` : "Route cleared"}</strong><i><b style={{ width: `${enemyHp * 25}%` }} /></i></div><div><span className="tiny-kicker"><Shield size={12} /> Explorer stamina</span><strong>{playerHp}/5</strong></div>{combatStatus && <p>{combatStatus}</p>}</aside>}
 

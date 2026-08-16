@@ -94,3 +94,5 @@ The mark is a **coral compass flower** with four hand-cut, teardrop-shaped petal
 - The playable world must echo the landing poster through an illustrated-atlas terrain layer, turquoise water bands, curved parchment routes, clustered landmark props, and compact route flags; procedural geometry is a deliberate miniature-world construction, never a bare sandbox.
 - Imported player models are finished with a warm, readable explorer treatment so they belong to the postcard atlas rather than presenting as unrelated metallic game assets.
 - The Code City district prioritizes the uploaded city model as the landmark-led focal point while retaining a softened atlas treatment and the compact paper-based expedition HUD.
+- Imported city geometry is always framed by a parchment route ribbon, coral wayfinding stamps, sea-glass shadows, and clustered field props so it reads as a curated travel atlas rather than a raw asset drop.
+- Code City’s visible cards translate implementation into warmly observant field-guide language, while every control surface retains a paper, ink, stamp, route, or compass cue.

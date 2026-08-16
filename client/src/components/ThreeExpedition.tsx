@@ -22,7 +22,13 @@ type SceneState = {
   avatarModelUrl: string | null;
 };
 
-type Props = SceneState & { className?: string };
+export type EnvironmentLoadState = {
+  phase: "loading" | "ready" | "error";
+  loaded: number;
+  total: number;
+};
+
+type Props = SceneState & { className?: string; onEnvironmentLoad?: (state: EnvironmentLoadState) => void };
 
 const toWorld = ({ x, y }: Position) => new THREE.Vector3((x - 50) * 0.52, 0, (y - 50) * 0.42);
 const levelPalette: Record<ExpeditionLevelId, { sky: number; water: number; grass: number; sand: number; glow: number }> = {
@@ -303,10 +309,57 @@ function createNightCrystal() {
   return root;
 }
 
-export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, className }: Props) {
+function createCityRouteProp(kind: number) {
+  const root = new THREE.Group();
+  const ink = new THREE.MeshStandardMaterial({ color: 0x173a56, roughness: 0.78 });
+  const paper = new THREE.MeshStandardMaterial({ color: 0xfff0cc, roughness: 0.92 });
+  const coral = new THREE.MeshStandardMaterial({ color: 0xff715b, emissive: 0x7a180f, emissiveIntensity: 0.72, roughness: 0.44 });
+  const teal = new THREE.MeshStandardMaterial({ color: 0x287484, emissive: 0x153d4a, emissiveIntensity: 0.3, roughness: 0.55 });
+  if (kind % 3 === 0) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, 1.7, 6), ink);
+    pole.position.y = 0.85;
+    root.add(pole);
+    const pennant = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.76, 3), coral);
+    pennant.position.set(0.31, 1.42, 0);
+    pennant.rotation.z = -Math.PI / 2;
+    root.add(pennant);
+    const stamp = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.05, 8, 16), paper);
+    stamp.position.set(0, 1.15, 0.08);
+    stamp.rotation.x = Math.PI / 2;
+    root.add(stamp);
+  } else if (kind % 3 === 1) {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.62, 0.16, 10), paper);
+    base.position.y = 0.08;
+    root.add(base);
+    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.72, 1.12, 0.36), ink);
+    cabinet.position.y = 0.64;
+    root.add(cabinet);
+    const display = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.46, 0.025), teal);
+    display.position.set(0, 0.82, 0.195);
+    root.add(display);
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), coral);
+    beacon.position.y = 1.32;
+    root.add(beacon);
+  } else {
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.6, 0.65), paper);
+    crate.position.y = 0.3;
+    root.add(crate);
+    const seal = new THREE.Mesh(new THREE.CircleGeometry(0.16, 12), coral);
+    seal.position.set(0, 0.32, 0.336);
+    root.add(seal);
+    const signal = new THREE.Mesh(new THREE.OctahedronGeometry(0.24, 0), teal);
+    signal.position.y = 0.9;
+    root.add(signal);
+  }
+  return root;
+}
+
+export default function ThreeExpedition({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl, className, onEnvironmentLoad }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef<SceneState>({ levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl });
+  const environmentLoadRef = useRef(onEnvironmentLoad);
   stateRef.current = { levelId, position, target, stations, activeStationId, viewMode, emote, combatAction, environmentModelUrl, avatarModelUrl };
+  environmentLoadRef.current = onEnvironmentLoad;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -421,6 +474,15 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
             standard.metalness = 0;
             standard.needsUpdate = true;
           });
+        } else {
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          materials.forEach((material) => {
+            const standard = material as THREE.MeshStandardMaterial;
+            standard.color?.lerp(new THREE.Color(0xffe7b6), 0.13);
+            standard.roughness = 0.86;
+            standard.metalness = 0;
+            standard.needsUpdate = true;
+          });
         }
       });
       target.add(model);
@@ -430,11 +492,20 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       }
     };
     const loadSessionModel = (url: string, target: THREE.Group, targetHeight: number, isAvatar: boolean) => {
-      const failed = () => { if (isAvatar) avatarImported = false; };
-      if (url.toLowerCase().endsWith(".fbx")) {
+      const reportEnvironment = (state: EnvironmentLoadState) => { if (!isAvatar) environmentLoadRef.current?.(state); };
+      const failed = () => {
+        if (isAvatar) avatarImported = false;
+        reportEnvironment({ phase: "error", loaded: 0, total: 0 });
+      };
+      const loaded = (model: THREE.Object3D, animations?: THREE.AnimationClip[]) => {
+        placeSessionModel(model, target, targetHeight, isAvatar, animations);
+        reportEnvironment({ phase: "ready", loaded: 1, total: 1 });
+      };
+      const progress = (event: ProgressEvent<EventTarget>) => reportEnvironment({ phase: "loading", loaded: event.loaded, total: event.total || 0 });
+      if (url.toLowerCase().split("?")[0].endsWith(".fbx")) {
         fbxLoader.setResourcePath(url.slice(0, url.lastIndexOf("/") + 1));
-        fbxLoader.load(url, (model) => placeSessionModel(model, target, targetHeight, isAvatar, model.animations), undefined, failed);
-      } else gltfLoader.load(url, (gltf) => placeSessionModel(gltf.scene, target, targetHeight, isAvatar, gltf.animations), undefined, failed);
+        fbxLoader.load(url, (model) => loaded(model, model.animations), progress, failed);
+      } else gltfLoader.load(url, (gltf) => loaded(gltf.scene, gltf.animations), progress, failed);
     };
 
     const rebuildLevel = (next: SceneState) => {
@@ -469,6 +540,26 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         marker.position.copy(point).add(new THREE.Vector3(0, 0.15, 0));
         levelRoot.add(marker);
       });
+      if (next.levelId === "code-city") {
+        const cityRoute = new THREE.CatmullRomCurve3([
+          toWorld({ x: 48, y: 77 }).add(new THREE.Vector3(0, 0.18, 0)),
+          toWorld({ x: 38, y: 68 }).add(new THREE.Vector3(0, 0.2, 0)),
+          toWorld({ x: 24, y: 48 }).add(new THREE.Vector3(0, 0.22, 0)),
+          toWorld({ x: 55, y: 44 }).add(new THREE.Vector3(0, 0.22, 0)),
+          toWorld({ x: 67, y: 25 }).add(new THREE.Vector3(0, 0.22, 0)),
+          toWorld({ x: 75, y: 47 }).add(new THREE.Vector3(0, 0.22, 0)),
+          toWorld({ x: 83, y: 63 }).add(new THREE.Vector3(0, 0.2, 0)),
+        ]);
+        const cityRibbon = new THREE.Mesh(new THREE.TubeGeometry(cityRoute, 72, 0.16, 7, false), new THREE.MeshStandardMaterial({ color: 0xf6d996, emissive: 0x5d4215, emissiveIntensity: 0.12, roughness: 0.92 }));
+        levelRoot.add(cityRibbon);
+        cityRoute.getSpacedPoints(16).forEach((point, index) => {
+          if (index % 2) return;
+          const stamp = new THREE.Mesh(new THREE.CircleGeometry(0.13, 10), new THREE.MeshBasicMaterial({ color: index === 0 ? 0xff715b : 0xfff0cc }));
+          stamp.rotation.x = -Math.PI / 2;
+          stamp.position.copy(point).add(new THREE.Vector3(0, 0.035, 0));
+          levelRoot.add(stamp);
+        });
+      }
       next.stations.forEach((station, index) => {
         const point = toWorld(station);
         const marker = createStationMarker(station.id === next.activeStationId);
@@ -491,10 +582,11 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         const prop = next.levelId === "south-shore" ? createPalm()
           : next.levelId === "data-observatory" ? createDataOrbit()
             : next.levelId === "builder-harbor" ? createHarborCrate()
-              : createNightCrystal();
+              : next.levelId === "code-city" ? createCityRouteProp(propIndex)
+                : createNightCrystal();
         prop.position.set(Math.cos(angle) * radius, 0, Math.sin(angle) * radius * 0.56);
         prop.rotation.y = angle;
-        prop.scale.setScalar(next.levelId === "data-observatory" ? 0.75 : 0.9 + (propIndex % 3) * 0.08);
+        prop.scale.setScalar(next.levelId === "data-observatory" ? 0.75 : next.levelId === "code-city" ? 1 + (propIndex % 3) * 0.12 : 0.9 + (propIndex % 3) * 0.08);
         levelRoot.add(prop);
       }
       for (let flagIndex = 0; flagIndex < 5; flagIndex += 1) {
@@ -503,7 +595,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 1.3, 6), new THREE.MeshStandardMaterial({ color: 0x183d58, roughness: 0.9 }));
         pole.position.y = 0.65;
         flag.add(pole);
-        const pennant = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 3), new THREE.MeshStandardMaterial({ color: 0xf4dba5, roughness: 0.86 }));
+        const pennant = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 3), new THREE.MeshStandardMaterial({ color: next.levelId === "code-city" ? 0xff715b : 0xf4dba5, emissive: next.levelId === "code-city" ? 0x6a180f : 0x000000, emissiveIntensity: next.levelId === "code-city" ? 0.46 : 0, roughness: 0.86 }));
         pennant.position.set(0.2, 1.08, 0);
         pennant.rotation.z = -Math.PI / 2;
         flag.add(pennant);
@@ -539,7 +631,18 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       if (state.environmentModelUrl !== loadedEnvironmentUrl) {
         loadedEnvironmentUrl = state.environmentModelUrl;
         clearGroup(importedEnvironment);
-        if (state.environmentModelUrl) loadSessionModel(state.environmentModelUrl, importedEnvironment, 13, false);
+        importedEnvironment.position.set(0, 0, 0);
+        importedEnvironment.rotation.set(0, 0, 0);
+        if (state.environmentModelUrl) {
+          const isCodeCity = state.levelId === "code-city";
+          if (isCodeCity) {
+            importedEnvironment.position.set(-10.5, 0, -4.8);
+            importedEnvironment.rotation.y = -0.18;
+          }
+          // The uploaded city spans roughly 686 units across but only 44 units high.
+          // Scaling by height alone previously made it tower beyond the playable island.
+          loadSessionModel(state.environmentModelUrl, importedEnvironment, isCodeCity ? 1.22 : 13, false);
+        }
       }
       if (state.avatarModelUrl !== loadedAvatarUrl) {
         loadedAvatarUrl = state.avatarModelUrl;
@@ -613,6 +716,9 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
         marker.position.y = Math.sin(time / 520 + index) * 0.11;
       });
       const forward = new THREE.Vector3(Math.sin(player.rotation.y), 0, Math.cos(player.rotation.y));
+      const scenicFocus = state.levelId === "code-city" && importedEnvironment.children.length
+        ? player.position.clone().lerp(importedEnvironment.position, 0.32).add(new THREE.Vector3(0, 0.8, 0))
+        : player.position.clone().add(new THREE.Vector3(0, 0.8, 0));
       if (state.viewMode === "close") {
         const closeCam = player.position.clone().add(new THREE.Vector3(0, 1.85, 0)).add(forward.clone().multiplyScalar(0.25));
         camera.position.lerp(closeCam, Math.min(1, dt * 5));
@@ -620,7 +726,7 @@ export default function ThreeExpedition({ levelId, position, target, stations, a
       } else {
         const thirdCam = player.position.clone().add(new THREE.Vector3(6.4, 8.6, 10.7));
         camera.position.lerp(thirdCam, Math.min(1, dt * 3));
-        camera.lookAt(player.position.clone().add(new THREE.Vector3(0, 0.8, 0)));
+        camera.lookAt(scenicFocus);
       }
       renderer.render(scene, camera);
       frame = requestAnimationFrame(render);

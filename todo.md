@@ -68,3 +68,12 @@
 - [x] Improve the default coder character’s visible action kit while awaiting a user-provided custom avatar model.
 - [x] Add a simple sword-slash attack reaction and shield-block defence reaction to the RPG Frontier practice encounter.
 - [x] Verify default city loading, fallback behavior, and both encounter actions before delivery.
+
+# Code City Reliability and Exploration Upgrade
+
+- [x] Diagnose why the default city GLB can remain invisible or incomplete after loading on slower connections.
+- [x] Add a Code City asset loading screen with percentage progress, progress states, and an illustrated fallback path.
+- [x] Add a compact Code City compass or mini-map that points to the active destination and nearby discoveries.
+- [x] Add interactive city props, route flags, and discovery markers around the imported skyline.
+- [x] Rework hand controls with explicit calibration, stable gesture thresholds, clear start/stop states, and a usable fallback when camera tracking is unreliable.
+- [x] Verify the city route, touch/keyboard navigation, and hand gestures before publishing.
