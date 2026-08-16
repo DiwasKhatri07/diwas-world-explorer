@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://diwasexplor-8hxow3bb.manus.space/sitemap.xml

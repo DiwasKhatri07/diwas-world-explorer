@@ -1,0 +1,17 @@
+{
+  "name": "Diwas World Explorer",
+  "short_name": "Diwas Explorer",
+  "description": "An interactive portfolio expedition by Diwas Khatri.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#102a43",
+  "theme_color": "#102a43",
+  "icons": [
+    {
+      "src": "/manus-storage/compass-flower-mark_17aed5f6.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

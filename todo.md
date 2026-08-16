@@ -95,3 +95,11 @@
 - [x] Add mini-map station inspection that shows the selected station name and delivery status.
 - [x] Add a live on-screen signal when a calibrated hand gesture is successfully recognized.
 - [x] Verify load handoff, optimization mode, reward states, station inspection, and gesture feedback before publishing.
+
+# Source Publication and Search Readiness
+
+- [ ] Review the current application metadata, robots configuration, and local Git state.
+- [ ] Add complete SEO metadata, social cards, structured data, sitemap, and crawl guidance.
+- [ ] Write a complete README covering setup, controls, architecture, credits, performance, and deployment.
+- [ ] Create a GitHub repository and push the complete source code with clean ignores.
+- [ ] Verify the remote repository contents and record the published source URL.
